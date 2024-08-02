@@ -6,17 +6,15 @@ ARG user_name=ubuntu
 ARG user_id=1000
 ARG group_name=ubuntu
 ARG group_id=1000
-# git設定
-# ARG git_username=<username>
-# ARG git_email=<username>
-
 
 # タイムゾーンの設定
 RUN ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
 # aptのアップデート
 RUN apt-get -y update --fix-missing && apt-get -y upgrade
 # 必要なツールのインストール
-RUN apt-get -y install sudo wget bzip2 git vim cmake jupyter
+# RUN apt-get -y install sudo wget bzip2 git vim cmake jupyter
+RUN apt-get -y install sudo wget bzip2
+
 
 # ユーザの作成
 RUN groupadd -g ${group_id} ${group_name}
@@ -42,7 +40,7 @@ ENV LC_ALL C.UTF-8 \
     LANG C.UTF-8
 
 # プログラムのコピー
-COPY tint_prj Readme.md gitignore LICENSE  ./
+COPY tint_prj Readme.md .gitignore LICENSE  ./
 
 # juliaのインストール
 ARG JULIA_VERSION="1.10.4"
