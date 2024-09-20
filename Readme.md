@@ -23,5 +23,6 @@ to do: 論文の引用と軽い説明
 3. juliaのREPLが起動しシミュレーションが実行される
 
 ## 計算機での実行
+to do
 ### 参考サイト  
 > [AnacondaとJuliaをインストールしたDockerのコンテナを作るDockerfile](https://eqseqs.hatenablog.com/entry/2020/07/26/180318)
