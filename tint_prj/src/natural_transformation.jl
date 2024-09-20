@@ -4,8 +4,19 @@ include("functor.jl")
 using Graphs
 using SimpleWeightedGraphs
 using Combinatorics
+using StatsBase
 using .FunctorBuilder
 
+# "softmax" or "deterministic"
+search_method::String = "softmax"
+
+# 関手として採用する射をsoftmaxで選択する関数
+function softmax(candidates::Vector{Tuple})::Tuple
+    exp_prob = [exp(p[3]) for p in candidates]
+    sum_exp_prob = sum(exp_prob)
+    probs = [i / sum_exp_prob for i in exp_prob]
+    return wsample(candidates, probs)
+end
 
 # 自然変換を探索する関数（構造無視）
 function search(source::Int, target::Int,
@@ -19,13 +30,22 @@ function search(source::Int, target::Int,
         candidates = Vector{Tuple}()
         sizehint!(candidates, nv(potential_category))
         for target_image in vertices(target_category)
-            assoc_prob = weights(potential_category)[source_image, target_image]
+            assoc_prob = Graphs.weights(potential_category)[source_image, target_image]
             if assoc_prob >= rand()
                 push!(candidates, (source_image, target_image, assoc_prob))
             end
         end
         if length(candidates) != 0
-            dom, cod, prob = candidates[findmax(x->x[3], candidates)[2]]
+            if search_method == "softmax"
+                # softmaxで選択
+                dom, cod, prob = softmax(candidates)
+            elseif search_method == "deterministic"
+                # 連想確率の最大値で選択
+                dom, cod, prob = candidates[findmax(x->x[3], candidates)[2]]
+            else
+                return "Error: invalid method selected"
+            end
+
             objects[dom] = cod
             morphisms[(source, dom)] = (target, cod)
         end
@@ -75,7 +95,11 @@ function search(source::Int, target::Int,
             push!(candidates, (dom, cod, dist_sum))
         end 
     end
-    dom, cod, prob = candidates[findmin(x->x[3], candidates)[2]]
+    # 連想確率の最大値で選択
+    # dom, cod, prob = candidates[findmin(x->x[3], candidates)[2]]
+    # softmaxで選択
+    dom, cod, prob = softmax(candidates)
+
     morphisms[(source, triangle_dom)] = (target, dom)
     morphisms[(source, triangle_cod)] = (target, cod)
     morphisms[(triangle_dom, triangle_cod)] = (dom, cod)
