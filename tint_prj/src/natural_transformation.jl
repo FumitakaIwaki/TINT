@@ -7,6 +7,9 @@ using Combinatorics
 using StatsBase
 using .FunctorBuilder
 
+# "softmax" or "deterministic"
+search_method::String = "softmax"
+
 # 関手として採用する射をsoftmaxで選択する関数
 function softmax(candidates::Vector{Tuple})::Tuple
     exp_prob = [exp(p[3]) for p in candidates]
@@ -33,10 +36,15 @@ function search(source::Int, target::Int,
             end
         end
         if length(candidates) != 0
-            # 連想確率の最大値で選択
-            # dom, cod, prob = candidates[findmax(x->x[3], candidates)[2]]
-            # softmaxで選択
-            dom, cod, prob = softmax(candidates)
+            if search_method == "softmax"
+                # softmaxで選択
+                dom, cod, prob = softmax(candidates)
+            elseif search_method == "deterministic"
+                # 連想確率の最大値で選択
+                dom, cod, prob = candidates[findmax(x->x[3], candidates)[2]]
+            else
+                return "Error: invalid method selected"
+            end
 
             objects[dom] = cod
             morphisms[(source, dom)] = (target, cod)
