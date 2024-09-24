@@ -32,9 +32,9 @@ end
 function build(center_image::Int, init_images::Vector{Int}, potential_category::SimpleWeightedDiGraph)::SimpleWeightedDiGraph
     graph = SimpleWeightedDiGraph(NN)
     triangle_dom, triangle_cod = init_images
-    add_edge!(graph, center_image, triangle_dom, potential_category.weights[center_image, triangle_dom])
-    add_edge!(graph, center_image, triangle_cod, potential_category.weights[center_image, triangle_cod])
-    add_edge!(graph, triangle_dom, triangle_cod, potential_category.weights[triangle_dom, triangle_cod])
+    add_edge!(graph, center_image, triangle_dom, weights(potential_category)[center_image, triangle_dom])
+    add_edge!(graph, center_image, triangle_cod, weights(potential_category)[center_image, triangle_cod])
+    add_edge!(graph, triangle_dom, triangle_cod, weights(potential_category)[triangle_dom, triangle_cod])
     graph = add_identity(graph)
     return graph
 end
@@ -46,7 +46,7 @@ function build(center_image::Int, init_images::DataFrame, potential_category::Si
         add_edge!(graph, center_image, image.to, image.weight)
     end
     for (dom, cod) in permutations(init_images.to, 2)
-        add_edge!(graph, dom, cod, potential_category.weights[dom, cod])
+        add_edge!(graph, dom, cod, weights(potential_category)[dom, cod])
     end
     graph = add_identity(graph)
     return graph
