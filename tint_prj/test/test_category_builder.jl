@@ -5,7 +5,9 @@ using SimpleWeightedGraphs
 using Combinatorics
 
 include("../src/category_builder.jl")
+include("sample_data.jl")
 using .CategoryBuilder
+using .SampleDataLoader
 
 # add_identityのテストセット
 @testset "add_identity" begin
@@ -50,79 +52,42 @@ end
 
 # buidのテストセット
 @testset "build" begin
-    # サンプル辺リスト
-    data = [
-        1 3 0.8;
-        1 4 0.5;
-        1 5 0.2;
-        2 6 0.8;
-        2 7 0.5;
-        2 8 0.2;
-        4 3 0.3;
-        4 5 0.3;
-        7 6 0.3;
-        7 8 0.3;
-    ]
-    edgelist = DataFrame(data, [:from, :to, :weight])
+    sample = SampleDataLoader.get_sample()
+
+    edgelist = DataFrame(sample.edgelist, [:from, :to, :weight])
     edgelist.from = Int64.(edgelist.from)
     edgelist.to = Int64.(edgelist.to)
 
-    CategoryBuilder.NN = 8
+    CategoryBuilder.NN = sample.N
 
     # 潜在圏構築のテスト
-    adjmx = [
-        0.5 0.0 0.8 0.5 0.2 0.0 0.0 0.0;
-        0.0 0.5 0.0 0.0 0.0 0.8 0.5 0.2;
-        0.0 0.0 0.5 0.0 0.0 0.0 0.0 0.0;
-        0.0 0.0 0.3 0.5 0.3 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.5 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.0 0.5 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.0 0.3 0.5 0.3;
-        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.5;
-    ]
-    expected_graph = SimpleWeightedDiGraph(adjmx)
+    expected_graph = SimpleWeightedDiGraph(sample.adjmx)
     potential_category = CategoryBuilder.build(edgelist)
     @test potential_category == expected_graph
 
     # コスライス圏構築のテスト (構造無視)
-    adjmx = [
-        0.5 0.0 0.8 0.5 0.2 0.0 0.0 0.0;
-        0.0 0.5 0.0 0.0 0.0 0.0 0.0 0.0;
-        0.0 0.0 0.5 0.0 0.0 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.5 0.0 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.5 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.0 0.5 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.0 0.0 0.5 0.0;
-        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.5;
-    ]
-    expected_graph = SimpleWeightedDiGraph(adjmx)
+    expected_graph = SimpleWeightedDiGraph(sample.source_adjmx)
     source = 1
-    source_init_images = edgelist[edgelist.:from .== source, ["to", "weight"]]
+    source_images = sample.images[sample.images[:,1] .== source, 2]
+    source_init_images = edgelist[edgelist.:from .== source, :]
+    source_init_images = source_init_images[indexin(source_init_images.:to, source_images) .!== nothing, :]
     source_category = CategoryBuilder.build(source, source_init_images)
     @test source_category == expected_graph
 
-    adjmx = [
-        0.5 0.0 0.0 0.0 0.0 0.0 0.0 0.0;
-        0.0 0.5 0.0 0.0 0.0 0.8 0.5 0.2;
-        0.0 0.0 0.5 0.0 0.0 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.5 0.0 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.5 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.0 0.5 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.0 0.0 0.5 0.0;
-        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.5;
-    ]
-    expected_graph = SimpleWeightedDiGraph(adjmx)
+    expected_graph = SimpleWeightedDiGraph(sample.target_adjmx)
     target = 2
-    target_init_images = edgelist[edgelist.:from .== target, ["to", "weight"]]
+    target_images = sample.images[sample.images[:,1] .== target, 2]
+    target_init_images = edgelist[edgelist.:from .== target, :]
+    target_init_images = target_init_images[indexin(target_init_images.:to, target_images) .!== nothing, :]
     target_category = CategoryBuilder.build(target, target_init_images)
     @test target_category == expected_graph
 
     # 喩辞のコスライス圏構築のテスト (構造考慮)
     adjmx = [
-        0.5 0.0 0.8 0.5 0.0 0.0 0.0 0.0;
+        0.5 0.0 0.5 0.5 0.0 0.0 0.0 0.0;
         0.0 0.5 0.0 0.0 0.0 0.0 0.0 0.0;
-        0.0 0.0 0.5 0.0 0.0 0.0 0.0 0.0;
-        0.0 0.0 0.3 0.5 0.0 0.0 0.0 0.0;
+        0.0 0.0 0.5 0.5 0.0 0.0 0.0 0.0;
+        0.0 0.0 0.0 0.5 0.0 0.0 0.0 0.0;
         0.0 0.0 0.0 0.0 0.5 0.0 0.0 0.0;
         0.0 0.0 0.0 0.0 0.0 0.5 0.0 0.0;
         0.0 0.0 0.0 0.0 0.0 0.0 0.5 0.0;
@@ -130,7 +95,9 @@ end
     ]
     expected_graph = SimpleWeightedDiGraph(adjmx)
     source = 1
-    source_init_images = edgelist[edgelist.:from .== source, ["to", "weight"]]
+    source_images = sample.images[sample.images[:, 1] .== source, 2]
+    source_init_images = edgelist[edgelist.:from .== source, :]
+    source_init_images = source_init_images[indexin(source_init_images.:to, source_images) .!== nothing, :]
     source_triangle_images = CategoryBuilder.get_source_triangle(source_init_images, potential_category)
     source_category = CategoryBuilder.build(source, source_triangle_images, potential_category)
     @test source_category == expected_graph
@@ -138,18 +105,24 @@ end
     # 被喩辞のコスライス圏構築のテスト (構造考慮)
     adjmx = [
         0.5 0.0 0.0 0.0 0.0 0.0 0.0 0.0;
-        0.0 0.5 0.0 0.0 0.0 0.8 0.5 0.2;
+        0.0 0.5 0.0 0.0 0.0 0.5 0.5 0.5;
         0.0 0.0 0.5 0.0 0.0 0.0 0.0 0.0;
         0.0 0.0 0.0 0.5 0.0 0.0 0.0 0.0;
         0.0 0.0 0.0 0.0 0.5 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.0 0.5 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.0 0.3 0.5 0.3;
-        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.5;
+        0.0 0.0 0.0 0.0 0.0 0.5 0.5 0.5;
+        0.0 0.0 0.0 0.0 0.0 0.5 0.5 0.5;
+        0.0 0.0 0.0 0.0 0.0 0.5 0.5 0.5;
     ]
     expected_graph = SimpleWeightedDiGraph(adjmx)
     target = 2
-    target_init_images = edgelist[edgelist.:from .== target, ["to", "weight"]]
+    target_images = sample.images[sample.images[:,1] .== target, 2]
+    target_init_images = edgelist[edgelist.:from .== target, :]
+    target_init_images = target_init_images[indexin(target_init_images.:to, target_images) .!== nothing, :]
+    # target_init_images = edgelist[edgelist.:from .== target, ["to", "weight"]]
     target_category = CategoryBuilder.build(target, target_init_images, potential_category)
     @test target_category == expected_graph
+    println(collect(edges(target_category)))
+    println()
+    println(collect(edges(expected_graph)))
 
 end
