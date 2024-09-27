@@ -63,18 +63,6 @@ end
         7 6 0.3;
         7 8 0.3;
     ]
-    # data = [
-    #     3 1 0.8;
-    #     4 1 0.5;
-    #     5 1 0.2;
-    #     6 2 0.8;
-    #     7 2 0.5;
-    #     8 2 0.2;
-    #     3 4 0.3;
-    #     5 4 0.3;
-    #     6 7 0.3;
-    #     8 7 0.3;
-    # ]
     edgelist = DataFrame(data, [:from, :to, :weight])
     edgelist.from = Int64.(edgelist.from)
     edgelist.to = Int64.(edgelist.to)
