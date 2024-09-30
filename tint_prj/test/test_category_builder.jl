@@ -118,11 +118,7 @@ end
     target_images = sample.images[sample.images[:,1] .== target, 2]
     target_init_images = edgelist[edgelist.:from .== target, :]
     target_init_images = target_init_images[indexin(target_init_images.:to, target_images) .!== nothing, :]
-    # target_init_images = edgelist[edgelist.:from .== target, ["to", "weight"]]
     target_category = CategoryBuilder.build(target, target_init_images, potential_category)
     @test target_category == expected_graph
-    println(collect(edges(target_category)))
-    println()
-    println(collect(edges(expected_graph)))
 
 end
