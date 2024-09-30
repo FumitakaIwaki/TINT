@@ -67,7 +67,7 @@ end
 
     # コスライス圏構築のテスト (構造無視)
     expected_graph = SimpleWeightedDiGraph(sample.source_adjmx)
-    source = 1
+    source = sample.source
     source_images = sample.images[sample.images[:,1] .== source, 2]
     source_init_images = edgelist[edgelist.:from .== source, :]
     source_init_images = source_init_images[indexin(source_init_images.:to, source_images) .!== nothing, :]
@@ -75,7 +75,7 @@ end
     @test source_category == expected_graph
 
     expected_graph = SimpleWeightedDiGraph(sample.target_adjmx)
-    target = 2
+    target = sample.target
     target_images = sample.images[sample.images[:,1] .== target, 2]
     target_init_images = edgelist[edgelist.:from .== target, :]
     target_init_images = target_init_images[indexin(target_init_images.:to, target_images) .!== nothing, :]
@@ -94,7 +94,7 @@ end
         0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.5;
     ]
     expected_graph = SimpleWeightedDiGraph(adjmx)
-    source = 1
+    source = sample.source
     source_images = sample.images[sample.images[:, 1] .== source, 2]
     source_init_images = edgelist[edgelist.:from .== source, :]
     source_init_images = source_init_images[indexin(source_init_images.:to, source_images) .!== nothing, :]
@@ -114,7 +114,7 @@ end
         0.0 0.0 0.0 0.0 0.0 0.5 0.5 0.5;
     ]
     expected_graph = SimpleWeightedDiGraph(adjmx)
-    target = 2
+    target = sample.target
     target_images = sample.images[sample.images[:,1] .== target, 2]
     target_init_images = edgelist[edgelist.:from .== target, :]
     target_init_images = target_init_images[indexin(target_init_images.:to, target_images) .!== nothing, :]
