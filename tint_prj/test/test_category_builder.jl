@@ -12,7 +12,7 @@ using .SampleDataLoader
 # add_identityのテストセット
 @testset "add_identity" begin
     graph = SimpleWeightedDiGraph(5)
-    graph = CategoryBuilder.add_identity(graph)
+    graph = CategoryBuilder.add_identity(graph, 1.0)
 
     # 辺が５つ追加されているかのテスト
     @test length(edges(graph)) == 5
@@ -83,37 +83,17 @@ end
     @test target_category == expected_graph
 
     # 喩辞のコスライス圏構築のテスト (構造考慮)
-    adjmx = [
-        0.5 0.0 0.5 0.5 0.0 0.0 0.0 0.0;
-        0.0 0.5 0.0 0.0 0.0 0.0 0.0 0.0;
-        0.0 0.0 0.5 0.5 0.0 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.5 0.0 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.5 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.0 0.5 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.0 0.0 0.5 0.0;
-        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.5;
-    ]
-    expected_graph = SimpleWeightedDiGraph(adjmx)
+    expected_graph = SimpleWeightedDiGraph(sample.source_triangle_adjmx)
     source = sample.source
     source_images = sample.images[sample.images[:, 1] .== source, 2]
     source_init_images = edgelist[edgelist.:from .== source, :]
     source_init_images = source_init_images[indexin(source_init_images.:to, source_images) .!== nothing, :]
     source_triangle_images = CategoryBuilder.get_source_triangle(source_init_images, potential_category)
-    source_category = CategoryBuilder.build(source, source_triangle_images, potential_category)
+    source_category = CategoryBuilder.build(source, source_triangle_images)
     @test source_category == expected_graph
 
     # 被喩辞のコスライス圏構築のテスト (構造考慮)
-    adjmx = [
-        0.5 0.0 0.0 0.0 0.0 0.0 0.0 0.0;
-        0.0 0.5 0.0 0.0 0.0 0.5 0.5 0.5;
-        0.0 0.0 0.5 0.0 0.0 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.5 0.0 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.5 0.0 0.0 0.0;
-        0.0 0.0 0.0 0.0 0.0 0.5 0.5 0.5;
-        0.0 0.0 0.0 0.0 0.0 0.5 0.5 0.5;
-        0.0 0.0 0.0 0.0 0.0 0.5 0.5 0.5;
-    ]
-    expected_graph = SimpleWeightedDiGraph(adjmx)
+    expected_graph = SimpleWeightedDiGraph(sample.target_triangle_adjmx)
     target = sample.target
     target_images = sample.images[sample.images[:,1] .== target, 2]
     target_init_images = edgelist[edgelist.:from .== target, :]

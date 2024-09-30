@@ -14,7 +14,7 @@ function build(edgelist::DataFrame)::SimpleWeightedDiGraph
     for edge in eachrow(edgelist)
         add_edge!(graph, edge.from, edge.to, edge.weight)
     end
-    graph = add_identity(graph)
+    graph = add_identity(graph, 0.5)
     return graph
 end
 
@@ -22,19 +22,19 @@ end
 function build(center_image::Int, init_images::DataFrame)::SimpleWeightedDiGraph
     graph = SimpleWeightedDiGraph(NN)
     for image in eachrow(init_images)
-        add_edge!(graph, center_image, image.to, image.weight)
+        add_edge!(graph, center_image, image.to, 1.0)
     end
     graph = add_identity(graph)
     return graph
 end
 
 # 喩辞コスライス圏を構築する関数 (構造考慮)
-function build(center_image::Int, init_images::Vector{Int}, potential_category::SimpleWeightedDiGraph)::SimpleWeightedDiGraph
+function build(center_image::Int, init_images::Vector{Int})::SimpleWeightedDiGraph
     graph = SimpleWeightedDiGraph(NN)
     triangle_dom, triangle_cod = init_images
-    add_edge!(graph, center_image, triangle_dom, weights(potential_category)[center_image, triangle_dom])
-    add_edge!(graph, center_image, triangle_cod, weights(potential_category)[center_image, triangle_cod])
-    add_edge!(graph, triangle_dom, triangle_cod, weights(potential_category)[triangle_dom, triangle_cod])
+    add_edge!(graph, center_image, triangle_dom, 1.0)
+    add_edge!(graph, center_image, triangle_cod, 1.0)
+    add_edge!(graph, triangle_dom, triangle_cod, 1.0)
     graph = add_identity(graph)
     return graph
 end
@@ -43,19 +43,19 @@ end
 function build(center_image::Int, init_images::DataFrame, potential_category::SimpleWeightedDiGraph)::SimpleWeightedDiGraph
     graph = SimpleWeightedDiGraph(NN)
     for image in eachrow(init_images)
-        add_edge!(graph, center_image, image.to, image.weight)
+        add_edge!(graph, center_image, image.to, 1.0)
     end
     for (dom, cod) in permutations(init_images.to, 2)
-        add_edge!(graph, dom, cod, weights(potential_category)[dom, cod])
+        add_edge!(graph, dom, cod, 1.0)
     end
     graph = add_identity(graph)
     return graph
 end
 
-# 潜在圏に恒等射を追加する関数
-function add_identity(category::SimpleWeightedDiGraph)::SimpleWeightedDiGraph
+# 恒等射を追加する関数
+function add_identity(category::SimpleWeightedDiGraph, weight::Float64=1.0)::SimpleWeightedDiGraph
     for node in vertices(category)
-        add_edge!(category, node, node, 0.5)
+        add_edge!(category, node, node, weight)
     end
     return category
 end
