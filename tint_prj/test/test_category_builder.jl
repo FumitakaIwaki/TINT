@@ -87,16 +87,12 @@ end
     expected_graph = SimpleDiGraph(sample.source_adjmx)
     source = sample.source
     source_images = sample.images[sample.images[:,1] .== source, 2]
-    # source_init_images = edgelist[edgelist.:from .== source, :]
-    # source_init_images = source_init_images[indexin(source_init_images.:to, source_images) .!== nothing, :]
     source_category = CategoryBuilder.build(source, source_images)
     @test source_category == expected_graph
 
     expected_graph = SimpleDiGraph(sample.target_adjmx)
     target = sample.target
     target_images = sample.images[sample.images[:,1] .== target, 2]
-    # target_init_images = edgelist[edgelist.:from .== target, :]
-    # target_init_images = target_init_images[indexin(target_init_images.:to, target_images) .!== nothing, :]
     target_category = CategoryBuilder.build(target, target_images)
     @test target_category == expected_graph
 
