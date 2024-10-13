@@ -8,18 +8,18 @@ struct SampleData
     adjmx::Matrix{Float64}
     edgelist::Matrix{Float64}
     images::Matrix{Int64}
-    target::Int64
-    source::Int64
-    target_adjmx::Matrix{Float64}
-    source_adjmx::Matrix{Float64}
-    target_triangle_adjmx::Matrix{Float64}
-    source_triangle_adjmx::Matrix{Float64}
+    A::Int64
+    B::Int64
+    A_adjmx::Matrix{Float64}
+    B_adjmx::Matrix{Float64}
+    A_triangle_adjmx::Matrix{Float64}
+    B_triangle_adjmx::Matrix{Float64}
 end
 
 function get_sample()
     N = 8
-    target = 1
-    source = 2
+    A = 1
+    B = 2
     # 潜在圏の隣接行列
     adjmx = [
         1.0 0.5 0.5 0.5 0.5 0.5 0.5 0.5;
@@ -48,7 +48,7 @@ function get_sample()
         2 8;
     ]
     # 喩辞の初期イメージ (構造無視)
-    target_adjmx = [
+    A_adjmx = [
         1 0 1 1 1 0 0 0;
         0 0 0 0 0 0 0 0;
         0 0 1 0 0 0 0 0;
@@ -59,7 +59,7 @@ function get_sample()
         0 0 0 0 0 0 0 0;
     ]
     # 被喩辞の初期イメージ (構造無視)
-    source_adjmx = [
+    B_adjmx = [
         0 0 0 0 0 0 0 0;
         0 1 0 0 0 1 1 1;
         0 0 0 0 0 0 0 0;
@@ -70,7 +70,7 @@ function get_sample()
         0 0 0 0 0 0 0 1;
     ]
     # 喩辞の初期イメージ (構造考慮)
-    target_triangle_adjmx = [
+    A_triangle_adjmx = [
         1 0 1 1 0 0 0 0;
         0 1 0 0 0 0 0 0;
         0 0 1 1 0 0 0 0;
@@ -81,7 +81,7 @@ function get_sample()
         0 0 0 0 0 0 0 1;
     ]
     # 被喩辞の初期イメージ (構造考慮)
-    source_triangle_adjmx = [
+    B_triangle_adjmx = [
         1 0 0 0 0 0 0 0;
         0 1 0 0 0 1 1 1;
         0 0 1 0 0 0 0 0;
@@ -93,9 +93,9 @@ function get_sample()
     ]
     return SampleData(
         N, adjmx, edgelist, images,
-        target, source,
-        target_adjmx, source_adjmx,
-        target_triangle_adjmx, source_triangle_adjmx
+        A, B,
+        A_adjmx, B_adjmx,
+        A_triangle_adjmx, B_triangle_adjmx
         )
 end
 

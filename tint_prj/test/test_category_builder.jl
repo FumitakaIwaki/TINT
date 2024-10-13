@@ -84,17 +84,17 @@ end
     @test potential_category == expected_graph
 
     # コスライス圏構築のテスト (構造無視)
-    expected_graph = SimpleDiGraph(sample.source_adjmx)
-    source = sample.source
-    source_images = sample.images[sample.images[:,1] .== source, 2]
-    source_category = CategoryBuilder.build(source, source_images)
-    @test source_category == expected_graph
+    expected_graph = SimpleDiGraph(sample.A_adjmx)
+    A = sample.A
+    A_images = sample.images[sample.images[:,1] .== A, 2]
+    A_category = CategoryBuilder.build(A, A_images)
+    @test A_category == expected_graph
 
-    expected_graph = SimpleDiGraph(sample.target_adjmx)
-    target = sample.target
-    target_images = sample.images[sample.images[:,1] .== target, 2]
-    target_category = CategoryBuilder.build(target, target_images)
-    @test target_category == expected_graph
+    expected_graph = SimpleDiGraph(sample.B_adjmx)
+    B = sample.B
+    B_images = sample.images[sample.images[:,1] .== B, 2]
+    B_category = CategoryBuilder.build(B, B_images)
+    @test B_category == expected_graph
 
     # # 喩辞のコスライス圏構築のテスト (構造考慮)
     # expected_graph = SimpleWeightedDiGraph(sample.source_triangle_adjmx)
