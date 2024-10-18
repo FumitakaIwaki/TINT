@@ -3,6 +3,7 @@ include("functor.jl")
 
 using Graphs
 using SimpleWeightedGraphs
+using SimpleGraphs
 using Combinatorics
 using StatsBase
 using .FunctorBuilder
@@ -16,6 +17,54 @@ function softmax(candidates::Vector{Tuple})::Tuple
     sum_exp_prob = sum(exp_prob)
     probs = [i / sum_exp_prob for i in exp_prob]
     return wsample(candidates, probs)
+end
+
+# 自然変換を探索する関数(構造無視)
+# Aがtarget, Bがsource
+function search(potential_category::SimpleWeightedDiGraph,
+    target::Int, source::Int, 
+    target_category::SimpleDiGraph, source_category::SimpleDiGraph,
+    cutoff::Int=1)::Tuple
+    # Bの対象のみ
+    source_objects = [obj for obj in Graphs.neighbors(source_category, source) if obj != source]
+    # Aの対象のみ
+    target_objects = [obj for obj in Graphs.neighbors(target_category, target) if obj != target]
+
+    fork_edges = Set{Tuple}()
+    target_remain_edges = Set{Tuple}()
+    source_remain_edges = Set{Tuple}()
+    BMF_objects = Dict{Int, Int}(source => target)
+    F_objects = Dict{Int, Int}(source => target)
+
+    # source -> targetの重み行列
+    weight_mtx = [[potential_category.weights[s_obj, t_obj] for t_obj in  target_objects] for s_obj in source_objects]
+    # 上と同じshapeの乱数行列
+    rand_mtx = [rand(length(target_objects)) for i in 1:length(source_objects)]
+
+    for (i, (rand_list, weight_list)) in enumerate(zip(rand_mtx, weight_mtx))
+        # 自然変換の候補: 乱数 < 重みの対象
+        candidates = target_objects[rand_list .< weight_list]
+        if length(candidates) != 0
+            # 候補の重み
+            candidates_weights = weight_list[rand_list .< weight_list]
+            # 変換先の決定: 重み最大 (複数の場合ランダム)
+            target_object = rand(candidates[findall(candidates_weights .== maximum(candidates_weights))])
+            # 変換元の対象
+            source_object = source_objects[i]
+            
+            # BMFの記録
+            BMF_objects[source_object] = source_object
+            # Fの記録
+            F_objects[source_object] = target_object
+            # 自然変換の要素を記録
+            push!(fork_edges, (source_object, target_object))
+            # Fで移される射を記録
+            push!(target_remain_edges, (target, target_object))
+            # BMF, Fの移り元となる射を記録
+            push!(source_remain_edges, (source, source_object))
+        end
+    end
+    return fork_edges, target_remain_edges, source_remain_edges, BMF_objects, F_objects
 end
 
 # 自然変換を探索する関数（構造無視）
