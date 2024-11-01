@@ -1,27 +1,34 @@
 module TINT
 
-include("dataloader.jl")
-include("category_builder.jl")
-include("functor.jl")
-include("bmf_builder.jl")
-include("natural_transformation.jl")
+include("./dataloader.jl")
+include("./category_builder.jl")
+include("./natural_transformation.jl")
 
 using .DataLoader
 using .CategoryBuilder
-using .FunctorBuilder
-using .BMFBuilder
 using .NaturalTransformer
 
+using Random
 using DataFrames
 using Graphs
 using SimpleWeightedGraphs
 using SimpleGraphs
 
-# 総イメージ数
-NN::Int = 0
-# シミュレーションのタイプ ("object", "triangle")
+# シミュレーションのタイプ
+# "object": 構造無視
+# "triangle": 構造考慮
 mode::String = "object"
+# シード値
+seed::Int = 1234
 
+# 得られた関手を可視化する関数
+function view_functor(idx2img::Vector, F::Dict)
+    for (dom, cod) in F
+        if dom[1] != dom[2]
+            println(idx2img[dom[1]], " -> ", idx2img[dom[2]], " \t=> ", idx2img[cod[1]], " -> ", idx2img[cod[2]])
+        end
+    end
+end
 
 # シミュレーション実行関数（構造無視）
 function simulate(potential_category::SimpleWeightedDiGraph,
@@ -79,18 +86,6 @@ function simulate(potential_category::SimpleWeightedDiGraph,
     return metaphor, F
 end
 
-# function simulate(source::Int, target::Int,
-#     source_init_images::DataFrame, target_init_images::DataFrame, potential_category::SimpleWeightedDiGraph
-#     )::NaturalTransformer.FunctorBuilder.Functor
-
-#     source_category = CategoryBuilder.build(source, source_init_images)
-#     target_category = CategoryBuilder.build(target, target_init_images)
-#     _target_category, BMF = BMFBuilder.build(source, target, source_category, target_category)
-#     F = NaturalTransformer.search(source, target, source_category, target_category, potential_category)
-
-#     return F
-# end
-
 # シミュレーション実行関数（構造考慮）
 # function simulate(source::Int, target::Int,
 #     source_triangle_images::Vector{Int}, target_init_images::DataFrame, potential_category::SimpleWeightedDiGraph,
@@ -105,46 +100,66 @@ end
 # end
 
 
-function main(;file::String="tint_prj/data/three_metaphor_assoc_data.csv", outdir::String="tint_prj/out")
-    df = DataLoader.load_assoc_data(file)
+function main(
+    metaphor_set::Set = Set([("蝶", "踊り子")]),
+    assoc_file::String = "tint_prj/data/three_metaphor_assoc_data.csv",
+    image_file::String = "tint_prj/data/three_metaphor_images.csv",
+    outdir::String = "tint_prj/out",
+    verbose::Bool = true
+    )
+    Random.seed!(TINT.seed) # シード値の設定
+    # データの読み込み
+    assoc_df = DataLoader.load_assoc_data(assoc_file)
+    image_df = DataLoader.load_images(image_file)
 
     # indexとstrの辞書
-    idx2img = unique(vcat((df[:, ["from", "to"]] |> Array)...))
+    idx2img = unique(vcat((image_df[:, ["source", "target"]] |> Array)...))
     img2idx = Dict((idx2img[i], i) for i in eachindex(idx2img))
 
     # 総イメージ数の設定
-    TINT.NN = length(idx2img)
     CategoryBuilder.NN = length(idx2img)
 
-    A = img2idx["蝶"] # 被喩辞
-    B = img2idx["踊り子"] # 喩辞
-
     # strをindexに変換したdf
-    encoded_df = copy(df[:, ["weight"]])
-    encoded_df = hcat(get.(Ref(img2idx), df[:, ["from", "to"]], missing), encoded_df)
+    encoded_assoc_df = get.(Ref(img2idx), assoc_df[:, ["from", "to", "weight"]], assoc_df[:, "weight"])
+    encoded_image_df = get.(Ref(img2idx), image_df[:, ["source", "target"]], missing)
 
-    # 被喩辞の初期イメージ
-    A_init_images = encoded_df[encoded_df.:from .== A, ["to", "weight"]]
-    # 瑜辞の初期イメージ
-    B_init_images = encoded_df[encoded_df.:from .== B, ["to", "weight"]]
+    for (topic, vehicle) in metaphor_set
+        if verbose
+            println("\n", repeat("-", 30))
+            println(topic, " -> ", vehicle)
+            println(repeat("-", 30))
+        end
+        A = img2idx[topic] # 被喩辞
+        B = img2idx[vehicle] # 喩辞
+        
+        # 被喩辞のコスライス圏
+        A_images = encoded_image_df[encoded_image_df.:source .== A, :target]
+        A_category = CategoryBuilder.build(A, A_images)
+        # 喩辞のコスライス圏
+        B_images = encoded_image_df[encoded_image_df.:source .== B, :target]
+        B_category = CategoryBuilder.build(B, B_images)
 
-    # 潜在圏
-    potential_category = CategoryBuilder.build(encoded_df[:, ["from", "to", "weight"]])
-    potential_category = CategoryBuilder.add_identity(potential_category)
+        # 潜在圏
+        potential_category = CategoryBuilder.build(encoded_assoc_df)
 
-    if TINT.mode == "object"
-        F = simulate(source, B, A_init_images, B_init_images, potential_category)
-        return F
-    elseif TINT.mode == "triangle"
-        # 喩辞の三角構造を一つ取得
-        A_triangle_images = CategoryBuilder.get_source_triangle(A_init_images, potential_category)
-        F = simulate(A, B, A_triangle_images, B_init_images, potential_category)
-        return F
-    else
-        return "ERROR: Invalid mode selection!!"
+        # TINTの実行
+        if TINT.mode == "object" # 構造無視
+            metaphor, F = simulate(potential_category, A, B, A_category, B_category)
+            if verbose
+                view_functor(idx2img, F)
+            end
+        elseif TINT.mode == "triangle" # 構造考慮
+            # 喩辞の三角構造を一つ取得
+            A_triangle_images = CategoryBuilder.get_source_triangle(A_init_images, potential_category)
+            metaphor, F = simulate(A, B, A_triangle_images, B_init_images, potential_category)
+            if verbose
+                view_functor(idx2img, F)
+            end
+        else
+            throw(DomainError(TINT.mode, "Invalid mode selected!! Selecting from 'object' or 'triangle'."))
+            return
+        end
     end
-
-    return F
 end
 
 end # module TINT
