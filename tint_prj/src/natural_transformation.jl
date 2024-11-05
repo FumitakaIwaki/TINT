@@ -1,16 +1,10 @@
-module NaturalTransformer
-include("category_builder.jl")
-include("functor.jl")
+include("./config.jl")
+include("./category_builder.jl")
 
 using Graphs
 using SimpleWeightedGraphs
 using SimpleGraphs
 using StatsBase
-using .FunctorBuilder
-using .CategoryBuilder
-
-# "softmax" or "deterministic"
-search_method::String = "deterministic"
 
 # 自然変換をなしているか判定する関数
 function is_natural_transformation(c1::SimpleDiGraph, c2::SimpleDiGraph,
@@ -168,8 +162,8 @@ function full_anti_fork_rule(A_category::SimpleDiGraph, B_category::SimpleDiGrap
         add_edge!(antied_B_category, dom, cod)
     end
 
-    antied_A_category = CategoryBuilder.add_identity(antied_A_category)
-    antied_B_category = CategoryBuilder.add_identity(antied_B_category)
+    antied_A_category = add_identity(antied_A_category)
+    antied_B_category = add_identity(antied_B_category)
 
     return antied_A_category, antied_B_category
 end
@@ -225,7 +219,7 @@ end
 function search(potential_category::SimpleWeightedDiGraph,
     target::Int, source::Int, 
     target_category::SimpleDiGraph, source_category::SimpleDiGraph,
-    triangle::Val{false}; cutoff::Int=1)::Tuple
+    config::ObjectCfg; cutoff::Int=1)::Tuple
     # Bの対象のみ
     source_objects = [obj for obj in Graphs.neighbors(source_category, source) if obj != source]
     # Aの対象のみ
@@ -272,7 +266,7 @@ end
 function search(potential_category::SimpleWeightedDiGraph,
     target::Int, source::Int,
     target_category::SimpleDiGraph, source_category::SimpleDiGraph,
-    triangle::Val{true}; cutoff::Int=1
+    config::TriangleCfg; cutoff::Int=1
     )::Tuple
     # sourceの対象のみ
     source_objects = [obj for obj in Graphs.neighbors(source_category, source) if obj != source]
@@ -342,5 +336,3 @@ function search(potential_category::SimpleWeightedDiGraph,
     end
     return fork_edges, target_remain_edges, source_remain_edges, BMF_objects, F_objects
 end
-
-end # NaturalTransformer

@@ -1,4 +1,4 @@
-module CategoryBuilder
+include("./config.jl")
 
 using Graphs
 using SimpleWeightedGraphs
@@ -6,12 +6,9 @@ using SimpleGraphs
 using DataFrames
 using Combinatorics: permutations
 
-NN::Int = 0
-
-
 # 潜在圏を構築する関数
-function build(edgelist::DataFrame)::SimpleWeightedDiGraph
-    graph = SimpleWeightedDiGraph(NN)
+function build(edgelist::DataFrame, config::AbstractCfg)::SimpleWeightedDiGraph
+    graph = SimpleWeightedDiGraph(config.NN)
     for edge in eachrow(edgelist)
         add_edge!(graph, edge.from, edge.to, edge.weight)
     end
@@ -20,8 +17,8 @@ function build(edgelist::DataFrame)::SimpleWeightedDiGraph
 end
 
 # コスライス圏を構築する関数 (構造無視)
-function build(center_image::Int, init_images::Vector{Int})::SimpleDiGraph
-    graph = SimpleDiGraph(NN)
+function build(center_image::Int, init_images::Vector{Int}, config::ObjectCfg)::SimpleDiGraph
+    graph = SimpleDiGraph(config.NN)
     for image in init_images
         add_edge!(graph, center_image, image)
     end
@@ -30,8 +27,8 @@ function build(center_image::Int, init_images::Vector{Int})::SimpleDiGraph
 end
 
 # 被喩辞のコスライス圏を構築する関数 （構造考慮）
-function build(center_image::Int, init_images::Vector{Int}; triangle::Bool=true)::SimpleDiGraph
-    graph = SimpleDiGraph(NN)
+function build(center_image::Int, init_images::Vector{Int}, config::TriangleCfg)::SimpleDiGraph
+    graph = SimpleDiGraph(config.NN)
     for image in init_images
         add_edge!(graph, center_image, image)
     end
@@ -43,8 +40,8 @@ function build(center_image::Int, init_images::Vector{Int}; triangle::Bool=true)
 end
 
 # 喩辞のコスライス圏を構築する関数 (構造考慮)
-function build(center_image::Int, dom::Int, cod::Int)::SimpleDiGraph
-    graph = SimpleDiGraph(NN)
+function build(center_image::Int, dom::Int, cod::Int, config::TriangleCfg)::SimpleDiGraph
+    graph = SimpleDiGraph(config.NN)
     add_edge!(graph, center_image, dom)
     add_edge!(graph, center_image, cod)
     add_edge!(graph, dom, cod)
@@ -70,5 +67,3 @@ function add_identity(graph::SimpleDiGraph)::SimpleDiGraph
     end
     return graph
 end
-
-end # CategoryBuilder

@@ -1,5 +1,3 @@
-module DataLoader
-
 using CSV
 using DataFrames
 using StringEncodings
@@ -20,5 +18,3 @@ function load_images(file::String)
 
     return CSV.read(IOBuffer(f), header=header, DataFrame)
 end
-
-end # DataLoader
