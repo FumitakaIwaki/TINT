@@ -4,7 +4,7 @@ using Graphs
 using SimpleWeightedGraphs
 using SimpleGraphs
 using DataFrames
-using Combinatorics
+using Combinatorics: permutations
 
 NN::Int = 0
 
@@ -29,26 +29,25 @@ function build(center_image::Int, init_images::Vector{Int})::SimpleDiGraph
     return graph
 end
 
-# 喩辞コスライス圏を構築する関数 (構造考慮)
-function build(center_image::Int, init_images::Vector{Int}, triangle::Bool)::SimpleDiGraph
+# 被喩辞のコスライス圏を構築する関数 （構造考慮）
+function build(center_image::Int, init_images::Vector{Int}; triangle::Bool=true)::SimpleDiGraph
     graph = SimpleDiGraph(NN)
-    triangle_dom, triangle_cod = init_images
-    add_edge!(graph, center_image, triangle_dom)
-    add_edge!(graph, center_image, triangle_cod)
-    add_edge!(graph, triangle_dom, triangle_cod)
+    for image in init_images
+        add_edge!(graph, center_image, image)
+    end
+    for (dom, cod) in permutations(init_images, 2)
+        add_edge!(graph, dom, cod)
+    end
     graph = add_identity(graph)
     return graph
 end
 
-# 被喩辞のコスライス圏を構築する関数 （構造考慮）
-function build(center_image::Int, init_images::DataFrame, triangle::Bool)::SimpleDiGraph
+# 喩辞のコスライス圏を構築する関数 (構造考慮)
+function build(center_image::Int, dom::Int, cod::Int)::SimpleDiGraph
     graph = SimpleDiGraph(NN)
-    for image in eachrow(init_images)
-        add_edge!(graph, center_image, image.to)
-    end
-    for (dom, cod) in permutations(init_images.to, 2)
-        add_edge!(graph, dom, cod)
-    end
+    add_edge!(graph, center_image, dom)
+    add_edge!(graph, center_image, cod)
+    add_edge!(graph, dom, cod)
     graph = add_identity(graph)
     return graph
 end

@@ -13,6 +13,7 @@ using DataFrames
 using Graphs
 using SimpleWeightedGraphs
 using SimpleGraphs
+using Combinatorics: permutations
 
 # シミュレーションのタイプ
 # "object": 構造無視
@@ -30,9 +31,10 @@ function view_functor(idx2img::Vector, F::Dict)
     end
 end
 
-# シミュレーション実行関数（構造無視）
+# シミュレーション実行関数
 function simulate(potential_category::SimpleWeightedDiGraph,
-    A::Int, B::Int, A_category::SimpleDiGraph, B_category::SimpleDiGraph
+    A::Int, B::Int, A_category::SimpleDiGraph, B_category::SimpleDiGraph,
+    triangle::Val
     )::Tuple
     is_BMF_functor = false
     is_F_functor = false
@@ -42,7 +44,7 @@ function simulate(potential_category::SimpleWeightedDiGraph,
     metaphor = Dict()
 
     # A_categoryとB_categoryの対応付を探索
-    fork_edges, A_remain_edges, B_remain_edges, BMF_objects, F_objects = NaturalTransformer.search(potential_category, A, B, A_category, B_category)
+    fork_edges, A_remain_edges, B_remain_edges, BMF_objects, F_objects = NaturalTransformer.search(potential_category, A, B, A_category, B_category, triangle)
 
     # 対応を取るときはAがBにfでつながった形にしなければいけない
     # それでは元に戻せないので現状の圏を保管しておく
@@ -86,28 +88,57 @@ function simulate(potential_category::SimpleWeightedDiGraph,
     return metaphor, F
 end
 
-# シミュレーション実行関数（構造考慮）
-# function simulate(source::Int, target::Int,
-#     source_triangle_images::Vector{Int}, target_init_images::DataFrame, potential_category::SimpleWeightedDiGraph,
-#     )::NaturalTransformer.FunctorBuilder.Functor
+# 構造無視の実行関数
+function run(potential_category::SimpleWeightedDiGraph,
+    A::Int, B::Int, A_images::Vector{Int}, B_images::Vector{Int},
+    triangle::Val{false})::Dict{Tuple, Tuple}
+    # 被喩辞のコスライス圏
+    A_category = CategoryBuilder.build(A, A_images)
+    # 喩辞のコスライス圏
+    B_category = CategoryBuilder.build(B, B_images)
+    # シミュレーション
+    metaphor, F = simulate(potential_category, A, B, A_category, B_category, triangle)
 
-#     source_category = CategoryBuilder.build(source, source_triangle_images, potential_category)
-#     target_category = CategoryBuilder.build(target, target_init_images, potential_category)
-#     _target_category, BMF = BMFBuilder.build(source, target, source_triangle_images, target_category)
-#     F = NaturalTransformer.search(source, target, source_category, target_category, potential_category, source_triangle_images)
+    return F
+end
 
-#     return F
-# end
+# 構造考慮の実行関数
+function run(potential_category::SimpleWeightedDiGraph,
+    A::Int, B::Int, A_images::Vector{Int}, B_images::Vector{Int},
+    triangle::Val{true})::Dict{Tuple, Tuple}
+    F = Dict{Tuple, Tuple}()
+    # 被喩辞のコスライス圏
+    A_category = CategoryBuilder.build(A, A_images, triangle=true)
+    for (B_dom, B_cod) in permutations(B_images, 2)
+        if B == B_dom || B == B_cod || B_dom == B_cod
+            continue
+        end
+        # 喩辞のコスライス圏
+        B_category = CategoryBuilder.build(B, B_dom, B_cod)
+        # シミュレーション
+        metaphor, _F = simulate(potential_category, A, B, A_category, B_category, triangle)
+        merge!(F, _F)
+    end
+    return F
+end
 
-
-function main(
-    metaphor_set::Set = Set([("蝶", "踊り子")]),
+# main関数
+function main(;metaphor_set::Set = Set([("蝶", "踊り子")]),
     assoc_file::String = "tint_prj/data/three_metaphor_assoc_data.csv",
     image_file::String = "tint_prj/data/three_metaphor_images.csv",
     outdir::String = "tint_prj/out",
     verbose::Bool = true
     )
     Random.seed!(TINT.seed) # シード値の設定
+    # モードの選択
+    if TINT.mode == "object"
+        triangle = Val(false)
+    elseif TINT.mode == "triangle"
+        triangle = Val(true)
+    else
+        throw(DomainError(TINT.mode, "Invalid mode selected!! Selecting from 'object' or 'triangle'."))
+        return
+    end
     # データの読み込み
     assoc_df = DataLoader.load_assoc_data(assoc_file)
     image_df = DataLoader.load_images(image_file)
@@ -129,36 +160,53 @@ function main(
             println(topic, " -> ", vehicle)
             println(repeat("-", 30))
         end
-        A = img2idx[topic] # 被喩辞
-        B = img2idx[vehicle] # 喩辞
-        
-        # 被喩辞のコスライス圏
-        A_images = encoded_image_df[encoded_image_df.:source .== A, :target]
-        A_category = CategoryBuilder.build(A, A_images)
-        # 喩辞のコスライス圏
-        B_images = encoded_image_df[encoded_image_df.:source .== B, :target]
-        B_category = CategoryBuilder.build(B, B_images)
-
         # 潜在圏
         potential_category = CategoryBuilder.build(encoded_assoc_df)
+        # 被喩辞
+        A = img2idx[topic]
+        # 被喩辞の初期イメージ
+        A_images = encoded_image_df[encoded_image_df.:source .== A, :target]
+        # 喩辞
+        B = img2idx[vehicle]
+        # 喩辞の初期イメージ
+        B_images = encoded_image_df[encoded_image_df.:source .== B, :target]
 
         # TINTの実行
-        if TINT.mode == "object" # 構造無視
-            metaphor, F = simulate(potential_category, A, B, A_category, B_category)
-            if verbose
-                view_functor(idx2img, F)
-            end
-        elseif TINT.mode == "triangle" # 構造考慮
-            # 喩辞の三角構造を一つ取得
-            A_triangle_images = CategoryBuilder.get_source_triangle(A_init_images, potential_category)
-            metaphor, F = simulate(A, B, A_triangle_images, B_init_images, potential_category)
-            if verbose
-                view_functor(idx2img, F)
-            end
-        else
-            throw(DomainError(TINT.mode, "Invalid mode selected!! Selecting from 'object' or 'triangle'."))
-            return
+        F = run(potential_category, A, B, A_images, B_images, triangle)
+        if verbose
+            view_functor(idx2img, F)
         end
+
+        # TINTの実行
+        # if TINT.mode == "object" # 構造無視
+        #     # 被喩辞のコスライス圏
+        #     A_category = CategoryBuilder.build(A, A_images)
+        #     # 喩辞のコスライス圏
+        #     B_category = CategoryBuilder.build(B, B_images)
+        #     # シミュレーション
+        #     metaphor, F = simulate(potential_category, A, B, A_category, B_category, triangle)
+        #     if verbose
+        #         view_functor(idx2img, F)
+        #     end
+        # elseif TINT.mode == "triangle" # 構造考慮
+        #     # 被喩辞のコスライス圏
+        #     A_category = CategoryBuilder.build(A, A_images, triangle=true)
+        #     for (B_dom, B_cod) in permutations(B_images, 2)
+        #         if B == B_dom || B == B_cod || B_dom == B_cod
+        #             continue
+        #         end
+        #         # 喩辞のコスライス圏
+        #         B_category = CategoryBuilder.build(B, B_dom, B_cod)
+        #         # シミュレーション
+        #         metaphor, F = simulate(A, B, A_triangle_images, B_init_images, potential_category, triangle)
+        #         if verbose
+        #             view_functor(idx2img, F)
+        #         end
+        #     end
+        # else
+        #     throw(DomainError(TINT.mode, "Invalid mode selected!! Selecting from 'object' or 'triangle'."))
+        #     return
+        # end
     end
 end
 
