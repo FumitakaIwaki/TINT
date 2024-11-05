@@ -71,16 +71,4 @@ function add_identity(graph::SimpleDiGraph)::SimpleDiGraph
     return graph
 end
 
-# 喩辞と初期イメージの三角構造の組を一つ取得する関数
-function get_source_triangle(source_init_images::DataFrame, potential_category::SimpleWeightedDiGraph)::Vector{Int}
-    for dom in source_init_images.to
-        for cod in source_init_images.to
-            if dom!=cod && has_edge(potential_category, dom, cod)
-                return Vector([dom, cod])
-            end
-        end
-    end
-    return zeros(2)
-end
-
 end # CategoryBuilder

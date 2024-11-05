@@ -176,37 +176,6 @@ function main(;metaphor_set::Set = Set([("蝶", "踊り子")]),
         if verbose
             view_functor(idx2img, F)
         end
-
-        # TINTの実行
-        # if TINT.mode == "object" # 構造無視
-        #     # 被喩辞のコスライス圏
-        #     A_category = CategoryBuilder.build(A, A_images)
-        #     # 喩辞のコスライス圏
-        #     B_category = CategoryBuilder.build(B, B_images)
-        #     # シミュレーション
-        #     metaphor, F = simulate(potential_category, A, B, A_category, B_category, triangle)
-        #     if verbose
-        #         view_functor(idx2img, F)
-        #     end
-        # elseif TINT.mode == "triangle" # 構造考慮
-        #     # 被喩辞のコスライス圏
-        #     A_category = CategoryBuilder.build(A, A_images, triangle=true)
-        #     for (B_dom, B_cod) in permutations(B_images, 2)
-        #         if B == B_dom || B == B_cod || B_dom == B_cod
-        #             continue
-        #         end
-        #         # 喩辞のコスライス圏
-        #         B_category = CategoryBuilder.build(B, B_dom, B_cod)
-        #         # シミュレーション
-        #         metaphor, F = simulate(A, B, A_triangle_images, B_init_images, potential_category, triangle)
-        #         if verbose
-        #             view_functor(idx2img, F)
-        #         end
-        #     end
-        # else
-        #     throw(DomainError(TINT.mode, "Invalid mode selected!! Selecting from 'object' or 'triangle'."))
-        #     return
-        # end
     end
 end
 
