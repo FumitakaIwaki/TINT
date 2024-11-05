@@ -11,6 +11,14 @@ using SimpleWeightedGraphs
 using SimpleGraphs
 using Combinatorics: permutations
 
+# 結果保存関数
+function save_result(idx2img::Vector{String15},
+    metaphor_history::Vector{Dict{Int, Set{Graphs.SimpleGraphs.SimpleEdge{Int}}}},
+    F_history::Vector{Dict{Tuple{Int, Int}, Tuple{Int, Int}}}
+    )
+    return
+end
+
 # 得られた関手を可視化する関数
 function view_functor(idx2img::Vector, F::Dict)
     for (dom, cod) in F
@@ -108,7 +116,8 @@ function run(potential_category::SimpleWeightedDiGraph,
         # 喩辞のコスライス圏
         B_category = build(B, B_dom, B_cod, config)
         # シミュレーション
-        metaphor, _F = simulate(potential_category, A, B, A_category, B_category, config)
+        _metaphor, _F = simulate(potential_category, A, B, A_category, B_category, config)
+        merge!(metaphor, _metaphor)
         merge!(F, _F)
     end
     return metaphor, F
@@ -117,9 +126,6 @@ end
 # main関数
 function main(config::AbstractCfg)
     Random.seed!(config.seed) # シード値の設定
-    # 結果格納用Vector
-    metaphor_history = Dict{Tuple{String, String}, Vector{Dict{Int, Set{Graphs.SimpleGraphs.SimpleEdge{Int}}}}}()
-    F_history = Dict{Tuple{String, String}, Vector{Dict{Tuple{Int, Int}, Tuple{Int, Int}}}}()
     # データの読み込み
     assoc_df = load_assoc_data(config.assoc_file)
     image_df = load_images(config.image_file)
@@ -150,20 +156,20 @@ function main(config::AbstractCfg)
         B_images = encoded_image_df[encoded_image_df.:source .== B, :target]
 
         # TINTの実行
-        _metaphor_history = Vector{Dict{Int, Set{Graphs.SimpleGraphs.SimpleEdge{Int}}}}(undef, config.steps)
-        _F_history = Vector{Dict{Tuple{Int, Int}, Tuple{Int, Int}}}(undef, config.steps)
+        metaphor_history = Vector{Dict{Int, Set{Graphs.SimpleGraphs.SimpleEdge{Int}}}}(undef, config.steps)
+        F_history = Vector{Dict{Tuple{Int, Int}, Tuple{Int, Int}}}(undef, config.steps)
         for step in 1:config.steps
             metaphor, F = run(potential_category, A, B, A_images, B_images, config)
-            _metaphor_history[step] = metaphor
-            _F_history[step] = F
+            metaphor_history[step] = metaphor
+            F_history[step] = F
             if config.verbose
                 view_functor(idx2img, F)
             end
         end
-        metaphor_history[(topic, vehicle)] = _metaphor_history
-        F_history[(topic, vehicle)] = _F_history
+        save_result(idx2img, metaphor_history, F_history)
+        return metaphor_history, F_history
     end
-    return metaphor_history, F_history
+    # return metaphor_history, F_history
 end
 
 end # module TINT
