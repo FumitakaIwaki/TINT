@@ -12,15 +12,16 @@ using SimpleGraphs
 using Combinatorics: permutations
 
 # 結果保存関数
-function save_result(idx2img::Vector{String15},
-    metaphor_history::Vector{Dict{Int, Set{Graphs.SimpleGraphs.SimpleEdge{Int}}}},
+function save_functor(idx2img::Vector{String},
+    # metaphor_history::Vector{Dict{Int, Set{Graphs.SimpleGraphs.SimpleEdge{Int}}}},
     F_history::Vector{Dict{Tuple{Int, Int}, Tuple{Int, Int}}}
     )
+    
     return
 end
 
 # 得られた関手を可視化する関数
-function view_functor(idx2img::Vector, F::Dict)
+function view_functor(idx2img::Vector{String}, F::Dict{Tuple{Int, Int}, Tuple{Int, Int}})
     for (dom, cod) in F
         if dom[1] != dom[2]
             println(idx2img[dom[1]], " -> ", idx2img[dom[2]], " \t=> ", idx2img[cod[1]], " -> ", idx2img[cod[2]])
@@ -130,7 +131,7 @@ function main(config::AbstractCfg)
     assoc_df = load_assoc_data(config.assoc_file)
     image_df = load_images(config.image_file)
     # indexとstrの辞書
-    idx2img = unique(vcat((image_df[:, ["source", "target"]] |> Array)...))
+    TINT.idx2img = unique(vcat((image_df[:, ["source", "target"]] |> Array)...))
     img2idx = Dict((idx2img[i], i) for i in eachindex(idx2img))
     # 総イメージ数の設定
     config.NN = length(idx2img)
@@ -166,7 +167,7 @@ function main(config::AbstractCfg)
                 view_functor(idx2img, F)
             end
         end
-        save_result(idx2img, metaphor_history, F_history)
+        save_functor(idx2img, F_history)
         return metaphor_history, F_history
     end
     # return metaphor_history, F_history
