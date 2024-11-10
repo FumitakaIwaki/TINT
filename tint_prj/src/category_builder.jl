@@ -1,16 +1,14 @@
-module CategoryBuilder
+include("./config.jl")
 
 using Graphs
 using SimpleWeightedGraphs
+using SimpleGraphs
 using DataFrames
-using Combinatorics
-
-NN::Int = 0
-
+using Combinatorics: permutations
 
 # 潜在圏を構築する関数
-function build(edgelist::DataFrame)::SimpleWeightedDiGraph
-    graph = SimpleWeightedDiGraph(NN)
+function build(edgelist::DataFrame, config::AbstractCfg)::SimpleWeightedDiGraph
+    graph = SimpleWeightedDiGraph(config.NN)
     for edge in eachrow(edgelist)
         add_edge!(graph, edge.from, edge.to, edge.weight)
     end
@@ -19,57 +17,53 @@ function build(edgelist::DataFrame)::SimpleWeightedDiGraph
 end
 
 # コスライス圏を構築する関数 (構造無視)
-function build(center_image::Int, init_images::DataFrame)::SimpleWeightedDiGraph
-    graph = SimpleWeightedDiGraph(NN)
-    for image in eachrow(init_images)
-        add_edge!(graph, center_image, image.to, image.weight)
+function build(center_image::Int, init_images::Vector{Int}, config::ObjectCfg)::SimpleDiGraph
+    graph = SimpleDiGraph(config.NN)
+    for image in init_images
+        add_edge!(graph, center_image, image)
     end
-    graph = add_identity(graph)
-    return graph
-end
-
-# 喩辞コスライス圏を構築する関数 (構造考慮)
-function build(center_image::Int, init_images::Vector{Int}, potential_category::SimpleWeightedDiGraph)::SimpleWeightedDiGraph
-    graph = SimpleWeightedDiGraph(NN)
-    triangle_dom, triangle_cod = init_images
-    add_edge!(graph, center_image, triangle_dom, potential_category.weights[center_image, triangle_dom])
-    add_edge!(graph, center_image, triangle_cod, potential_category.weights[center_image, triangle_cod])
-    add_edge!(graph, triangle_dom, triangle_cod, potential_category.weights[triangle_dom, triangle_cod])
     graph = add_identity(graph)
     return graph
 end
 
 # 被喩辞のコスライス圏を構築する関数 （構造考慮）
-function build(center_image::Int, init_images::DataFrame, potential_category::SimpleWeightedDiGraph)::SimpleWeightedDiGraph
-    graph = SimpleWeightedDiGraph(NN)
-    for image in eachrow(init_images)
-        add_edge!(graph, center_image, image.to, image.weight)
+function build(center_image::Int, init_images::Vector{Int}, config::TriangleCfg)::SimpleDiGraph
+    graph = SimpleDiGraph(config.NN)
+    for image in init_images
+        add_edge!(graph, center_image, image)
     end
-    for (dom, cod) in permutations(init_images.to, 2)
-        add_edge!(graph, dom, cod, potential_category.weights[dom, cod])
+    for (dom, cod) in permutations(init_images, 2)
+        add_edge!(graph, dom, cod)
     end
     graph = add_identity(graph)
     return graph
 end
 
-# 潜在圏に恒等射を追加する関数
-function add_identity(category::SimpleWeightedDiGraph)::SimpleWeightedDiGraph
-    for node in vertices(category)
-        add_edge!(category, node, node, 0.5)
-    end
-    return category
+# 喩辞のコスライス圏を構築する関数 (構造考慮)
+function build(center_image::Int, dom::Int, cod::Int, config::TriangleCfg)::SimpleDiGraph
+    graph = SimpleDiGraph(config.NN)
+    add_edge!(graph, center_image, dom)
+    add_edge!(graph, center_image, cod)
+    add_edge!(graph, dom, cod)
+    graph = add_identity(graph)
+    return graph
 end
 
-# 喩辞と初期イメージの三角構造の組を一つ取得する関数
-function get_source_triangle(source_init_images::DataFrame, potential_category::SimpleWeightedDiGraph)::Vector{Int}
-    for dom in source_init_images.to
-        for cod in source_init_images.to
-            if dom!=cod && has_edge(potential_category, dom, cod)
-                return Vector([dom, cod])
-            end
+# 潜在圏に恒等射を追加する関数
+function add_identity(graph::SimpleWeightedDiGraph, weight::Float64=1.0)::SimpleWeightedDiGraph
+    for node in vertices(graph)
+        add_edge!(graph, node, node, weight)
+    end
+    return graph
+end
+
+# コスライス圏に恒等射を追加する関数
+function add_identity(graph::SimpleDiGraph)::SimpleDiGraph
+    degrees = degree(graph)
+    for node in vertices(graph)
+        if degrees[node] != 0
+            add_edge!(graph, node, node)
         end
     end
-    return zeros(2)
+    return graph
 end
-
-end # CategoryBuilder
