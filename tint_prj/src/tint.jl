@@ -1,33 +1,17 @@
 module TINT
-include("./config.jl")
-include("./dataloader.jl")
-include("./category_builder.jl")
-include("./natural_transformation.jl")
-
 using Random
 using DataFrames
 using Graphs
 using SimpleWeightedGraphs
 using SimpleGraphs
 using Combinatorics: permutations
+using ProgressBars
 
-# 結果保存関数
-function save_functor(idx2img::Vector{String},
-    # metaphor_history::Vector{Dict{Int, Set{Graphs.SimpleGraphs.SimpleEdge{Int}}}},
-    F_history::Vector{Dict{Tuple{Int, Int}, Tuple{Int, Int}}}
-    )
-    
-    return
-end
-
-# 得られた関手を可視化する関数
-function view_functor(idx2img::Vector{String}, F::Dict{Tuple{Int, Int}, Tuple{Int, Int}})
-    for (dom, cod) in F
-        if dom[1] != dom[2]
-            println(idx2img[dom[1]], " -> ", idx2img[dom[2]], " \t=> ", idx2img[cod[1]], " -> ", idx2img[cod[2]])
-        end
-    end
-end
+include("./config.jl")
+include("./dataloader.jl")
+include("./category_builder.jl")
+include("./natural_transformation.jl")
+include("./recorder.jl")
 
 # シミュレーション実行関数
 function simulate(potential_category::SimpleWeightedDiGraph,
@@ -89,25 +73,30 @@ end
 # 構造無視の実行関数
 function run(potential_category::SimpleWeightedDiGraph,
     A::Int, B::Int, A_images::Vector{Int}, B_images::Vector{Int},
-    config::ObjectCfg)::Tuple{Dict{Int, Set{Graphs.SimpleGraphs.SimpleEdge{Int}}}, Dict{Tuple{Int, Int}, Tuple{Int, Int}}}
+    config::ObjectCfg)::ObjectRecorde
     metaphor = Dict{Int, Set{Graphs.SimpleGraphs.SimpleEdge{Int}}}()
-    F = Dict{Tuple{Int, Int}, Tuple{Int, Int}}()
+    F = Dict{NTuple{2, Int}, NTuple{2, Int}}()
     # 被喩辞のコスライス圏
     A_category = build(A, A_images, config)
     # 喩辞のコスライス圏
     B_category = build(B, B_images, config)
     # シミュレーション
     metaphor, F = simulate(potential_category, A, B, A_category, B_category, config)
+    # 結果の格納
+    recordes = ObjectRecorde(F)
 
-    return metaphor, F
+    return recordes
 end
 
 # 構造考慮の実行関数
 function run(potential_category::SimpleWeightedDiGraph,
     A::Int, B::Int, A_images::Vector{Int}, B_images::Vector{Int},
-    config::TriangleCfg)::Tuple{Dict{Int, Set{Graphs.SimpleGraphs.SimpleEdge{Int}}}, Dict{Tuple{Int, Int}, Tuple{Int, Int}}}
+    config::TriangleCfg)::Vector{TriangleRecorde}
     metaphor = Dict{Int, Set{Graphs.SimpleGraphs.SimpleEdge{Int}}}()
-    F = Dict{Tuple{Int, Int}, Tuple{Int, Int}}()
+    F = Dict{NTuple{2, Int}, NTuple{2, Int}}()
+    recordes = Vector{TriangleRecorde}()
+    sizehint!(recordes, length(permutations(B_images, 2)))
+
     # 被喩辞のコスライス圏
     A_category = build(A, A_images, config)
     for (B_dom, B_cod) in permutations(B_images, 2)
@@ -117,11 +106,11 @@ function run(potential_category::SimpleWeightedDiGraph,
         # 喩辞のコスライス圏
         B_category = build(B, B_dom, B_cod, config)
         # シミュレーション
-        _metaphor, _F = simulate(potential_category, A, B, A_category, B_category, config)
-        merge!(metaphor, _metaphor)
-        merge!(F, _F)
+        metaphor, F = simulate(potential_category, A, B, A_category, B_category, config)
+        # 結果の格納
+        push!(recordes, TriangleRecorde(B_dom, B_cod, F))
     end
-    return metaphor, F
+    return recordes
 end
 
 # main関数
@@ -138,12 +127,17 @@ function main(config::AbstractCfg)
     # strをindexに変換したdf
     encoded_assoc_df = get.(Ref(img2idx), assoc_df[:, ["from", "to", "weight"]], assoc_df[:, "weight"])
     encoded_image_df = get.(Ref(img2idx), image_df[:, ["source", "target"]], missing)
+    # プログレスバーを表示するか否か
+    if config.verbose
+        step_iter = ProgressBar(1:config.steps)
+    else
+        step_iter = 1:config.steps
+    end
     # 　全ての比喩セットに対して実行
     for (topic, vehicle) in config.metaphor_set
         if config.verbose
-            println("\n", repeat("-", 30))
-            println(topic, " -> ", vehicle)
-            println(repeat("-", 30))
+            mode = split(string(typeof(config)), ".")[3][1:end-3]
+            println(mode, " simulation for ", topic, " -> ", vehicle)
         end
         # 潜在圏
         potential_category = build(encoded_assoc_df, config)
@@ -156,21 +150,15 @@ function main(config::AbstractCfg)
         # 喩辞の初期イメージ
         B_images = encoded_image_df[encoded_image_df.:source .== B, :target]
 
+        # 結果格納用
+        result = Result(A, B, config)
         # TINTの実行
-        metaphor_history = Vector{Dict{Int, Set{Graphs.SimpleGraphs.SimpleEdge{Int}}}}(undef, config.steps)
-        F_history = Vector{Dict{Tuple{Int, Int}, Tuple{Int, Int}}}(undef, config.steps)
-        for step in 1:config.steps
-            metaphor, F = run(potential_category, A, B, A_images, B_images, config)
-            metaphor_history[step] = metaphor
-            F_history[step] = F
-            if config.verbose
-                view_functor(idx2img, F)
-            end
+        for step in step_iter
+            recordes = run(potential_category, A, B, A_images, B_images, config)
+            update_result!(result, recordes)
         end
-        save_functor(idx2img, F_history)
-        return metaphor_history, F_history
+        save_result(result, config, idx2img)
     end
-    # return metaphor_history, F_history
-end
+end # main
 
 end # module TINT
