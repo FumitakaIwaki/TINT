@@ -1,3 +1,8 @@
 tint_prj/dev.ipynb
 .env
 .vscode
+results/
+out/triangle/
+out/object/
+test/sample_data/object/
+test/sample_data/triangle/
