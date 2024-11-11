@@ -1,46 +1,24 @@
 include("./src/tint.jl")
 using .TINT
 
-function run_object()
-    config = Dict{String, Any}(
-        "metaphor_set" => Set([("蝶", "踊り子")]),
-        "assoc_file" => "tint_prj/data/three_metaphor_assoc_data.csv",
-        "image_file" => "tint_prj/data/three_metaphor_images.csv",
-        "out_dir" => "tint_prj/out/",
-        "NN" => 0,
-        "steps" => 1000,
-        "search_method" => "deterministic",
-        "seed" => 1234,
-        "verbose" => true,
-    )
-    config = TINT.ObjectCfg(config)
+function run_object(config_file::String)
+    config = TINT.ObjectCfg(config_file)
     TINT.main(config)
 end
 
-function run_triangle()
-    config = Dict{String, Any}(
-        "metaphor_set" => Set([("蝶", "踊り子")]),
-        "assoc_file" => "tint_prj/data/three_metaphor_assoc_data.csv",
-        "image_file" => "tint_prj/data/three_metaphor_images.csv",
-        "out_dir" => "tint_prj/out/",
-        "NN" => 0,
-        "steps" => 1000,
-        "search_method" => "deterministic",
-        "seed" => 1234,
-        "verbose" => true,
-    )
-    config = TINT.TriangleCfg(config)
+function run_triangle(config_file::String)
+    config = TINT.TriangleCfg(config_file)
     TINT.main(config)
 end
 
-function main(;mode::String = "object")
+function main(;mode::String = "all", config_file::String = "tint_prj/tint_config.yml")
     if mode == "object"
-        run_object()
+        run_object(config_file)
     elseif mode == "triangle"
-        run_triangle()
+        run_triangle(config_file)
     elseif mode == "all"
-        run_object()
-        run_triangle()
+        run_object(config_file)
+        run_triangle(config_file)
     else
         throw(DomainError(mode, "Invalid mode selected."))
     end

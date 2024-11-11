@@ -1,5 +1,6 @@
 using CSV
 using DataFrames
+using YAML
 
 # 自然変換の探索により得られた関手の記録媒体
 abstract type AbstractRecorde end
@@ -109,6 +110,8 @@ function save_result(result::ObjectResult, config::ObjectCfg, idx2img::Vector{St
     sort!(df, [:B_dom, :B_cod, :A_dom, :A_cod])
     path = string(dir, file)
     CSV.write(path, df, header=true)
+    config_dict = Dict([(string(p), getproperty(config, p)) for p in propertynames(config)])
+    YAML.write_file(string(dir, "object_config.yml"), config_dict)
 end
 # 構造考慮
 function save_result(result::TriangleResult, config::TriangleCfg, idx2img::Vector{String})
@@ -133,5 +136,7 @@ function save_result(result::TriangleResult, config::TriangleCfg, idx2img::Vecto
         sort!(df, [:B_dom, :B_cod, :A_dom, :A_cod])
         path = string(dir, file)
         CSV.write(path, df, header=true)
+        config_dict = Dict([(string(p), getproperty(config, p)) for p in propertynames(config)])
+        YAML.write_file(string(dir, "triangle_config.yml"), config_dict)
     end
 end

@@ -1,7 +1,9 @@
+using YAML
+
 abstract type AbstractCfg end
 
 mutable struct ObjectCfg <: AbstractCfg
-    metaphor_set::Set{Tuple{String, String}}
+    metaphor_set::Vector{Vector{String}}
     assoc_file::String
     image_file::String
     out_dir::String
@@ -10,7 +12,8 @@ mutable struct ObjectCfg <: AbstractCfg
     search_method::String
     seed::Int
     verbose::Bool
-    function ObjectCfg(config::Dict{String, Any})
+    # 直接configのdictを渡されたときの内部コンストラクタ
+    function ObjectCfg(config::Dict{Any, Any})
         metaphor_set = config["metaphor_set"]
         assoc_file = config["assoc_file"]
         image_file = config["image_file"]
@@ -22,10 +25,15 @@ mutable struct ObjectCfg <: AbstractCfg
         verbose = config["verbose"]
         new(metaphor_set, assoc_file, image_file, out_dir, NN, steps, search_method, seed, verbose)
     end
+    # config.ymlのパスを渡されたときの内部コンストラクタ
+    function ObjectCfg(path::String)
+        config = YAML.load_file(path)["object"]
+        return ObjectCfg(config)
+    end
 end
 
 mutable struct TriangleCfg <: AbstractCfg
-    metaphor_set::Set{Tuple{String, String}}
+    metaphor_set::Vector{Vector{String}}
     assoc_file::String
     image_file::String
     out_dir::String
@@ -34,7 +42,8 @@ mutable struct TriangleCfg <: AbstractCfg
     search_method::String
     seed::Int
     verbose::Bool
-    function TriangleCfg(config::Dict{String, Any})
+    # 直接configのdictを渡されたときの内部コンストラクタ
+    function TriangleCfg(config::Dict{Any, Any})
         metaphor_set = config["metaphor_set"]
         assoc_file = config["assoc_file"]
         image_file = config["image_file"]
@@ -45,5 +54,10 @@ mutable struct TriangleCfg <: AbstractCfg
         seed = config["seed"]
         verbose = config["verbose"]
         new(metaphor_set, assoc_file, image_file, out_dir, NN, steps, search_method, seed, verbose)
+    end
+    # config.ymlのパスを渡されたときの内部コンストラクタ
+    function TriangleCfg(path::String)
+        config = YAML.load_file(path)["triangle"]
+        return TriangleCfg(config)
     end
 end
