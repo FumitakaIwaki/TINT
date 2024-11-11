@@ -1,8 +1,6 @@
 include("./src/tint.jl")
 using .TINT
 
-using Random
-
 function run_object()
     config = Dict{String, Any}(
         "metaphor_set" => Set([("蝶", "踊り子")]),
@@ -10,7 +8,7 @@ function run_object()
         "image_file" => "tint_prj/data/three_metaphor_images.csv",
         "out_dir" => "tint_prj/out/",
         "NN" => 0,
-        "steps" => 10,
+        "steps" => 1000,
         "search_method" => "deterministic",
         "seed" => 1234,
         "verbose" => true,
@@ -26,7 +24,7 @@ function run_triangle()
         "image_file" => "tint_prj/data/three_metaphor_images.csv",
         "out_dir" => "tint_prj/out/",
         "NN" => 0,
-        "steps" => 10,
+        "steps" => 1000,
         "search_method" => "deterministic",
         "seed" => 1234,
         "verbose" => true,
