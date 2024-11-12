@@ -1,0 +1,93 @@
+library(tidyverse)
+
+human_file <- "./results/human_correspondence.csv"
+object_file <- "./results/20241111_object/object_蝶_踊り子.csv"
+triangle_dir <- "./results/20241111_triangle"
+triangle_file <- "triangle_蝶_踊り子_"
+
+# 人間の結果データ
+human_file <- "./results/human_correspondence.csv"
+human_df <- read_csv(human_file)
+l = c()
+for (vehi in human_df$"...1") {
+    l = c(l, vehi)
+}
+human_df <- human_df[, -1]
+rownames(human_df) <- l
+# 構造無視結果データ
+object_df <- read_csv(object_file)
+# 構造考慮結果データ
+triangle_dfs <- list()
+for (file in list.files(triangle_dir, triangle_file, full.names = TRUE)) {
+    splitted_file <- rev(strsplit(file, "/")[[1]])[1]
+    splitted_file <- strsplit(splitted_file, ".csv")[[1]]
+    splitted_file <- strsplit(splitted_file, "_")[[1]]
+    B_dom <- rev(splitted_file)[2]
+    B_cod <- rev(splitted_file)[1]
+    triangle_dfs[[paste(B_dom, B_cod)]] <- read_csv(file)
+}
+
+# 構造無視の順位相関係数
+statistics <- list()
+p_values <- list()
+estimates <- list()
+for (vehicle in rownames(human_df)) {
+    human_rank <- rank(-unlist(human_df[vehicle, ]))
+    object_counts <- list()
+    for (topic in names(human_df)[-length(names(human_df))]) {
+        object_counts[topic] <- subset(
+            object_df, B_cod == vehicle & A_cod == topic
+            )$count[1]
+    }
+    object_counts$"NA" <- 1000 - sum(unlist(object_counts))
+    object_rank <- rank(-unlist(object_counts))
+    corr <- cor.test(object_rank, human_rank, method = "spearman")
+    statistics <- c(statistics, corr$statistic)
+    p_values <- c(p_values, corr$p.value)
+    estimates <- c(estimates, corr$estimate)
+}
+object_corr <- data.frame(
+    vehicle = rownames(human_df),
+    corr = unlist(estimates),
+    p_value = unlist(p_values),
+    statistics = unlist(statistics)
+)
+View(object_corr)
+
+# 構造考慮の順位相関係数
+triangle_corr <- data.frame()
+for (key in names(triangle_dfs)) {
+    triangle_df <- triangle_dfs[[key]]
+    statistics <- list()
+    p_values <- list()
+    estimates <- list()
+    vehicles <- strsplit(key, " ")[[1]]
+    for (vehicle in vehicles) {
+        human_rank <- rank(-unlist(human_df[vehicle, ]))
+    triangle_counts <- list()
+    for (topic in names(human_df)[-length(names(human_df))]) {
+        triangle_counts[topic] <- subset(
+                triangle_df, B_cod == vehicle & A_cod == topic
+                )$count[1]
+        }
+        triangle_counts$"NA" <- 1000 - sum(unlist(triangle_counts))
+        triangle_rank <- rank(-unlist(triangle_counts))
+        corr <- cor.test(triangle_rank, human_rank, method = "spearman")
+        statistics <- c(statistics, corr$statistic)
+        p_values <- c(p_values, corr$p.value)
+        estimates <- c(estimates, corr$estimate)
+    }
+    triangle_corr_ <- data.frame(
+        dom = vehicles[1],
+        cod = vehicles[2],
+        corr_dom = unlist(estimates)[1],
+        corr_cod = unlist(estimates)[2],
+        p_value_dom = unlist(p_values)[1],
+        p_value_cod = unlist(p_values)[2],
+        statistic_dom = unlist(statistics)[1],
+        statistic_cod = unlist(statistics)[2]
+    )
+    triangle_corr <- rbind(triangle_corr, triangle_corr_)
+}
+View(triangle_corr)
+# View(triangle_corr[["スカート 音楽"]])
