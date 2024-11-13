@@ -1,12 +1,24 @@
+---
+title: "TINTシミュレーション結果の順位相関係数"
+author: "Fumitaka Iwaki"
+date: "2024/11/13"
+output: html_document
+---
+
+```{r, include=FALSE}
 library(tidyverse)
+```
 
-human_file <- "./results/human_correspondence.csv"
-object_file <- "./results/20241111_object/object_蝶_踊り子.csv"
-triangle_dir <- "./results/20241111_triangle"
+## ファイルの読み込み
+```{r, include=FALSE}
+human_file <- "../results/human_correspondence.csv"
+object_file <- "../results/20241111_object/object_蝶_踊り子.csv"
+triangle_dir <- "../results/20241111_triangle"
 triangle_file <- "triangle_蝶_踊り子_"
+```
 
-# 人間の結果データ
-human_file <- "./results/human_correspondence.csv"
+### 人間の結果データ
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 human_df <- read_csv(human_file)
 l = c()
 for (vehi in human_df$"...1") {
@@ -14,9 +26,17 @@ for (vehi in human_df$"...1") {
 }
 human_df <- human_df[, -1]
 rownames(human_df) <- l
-# 構造無視結果データ
+DT::datatable(human_df)
+```
+
+### 構造無視の結果データ
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 object_df <- read_csv(object_file)
-# 構造考慮結果データ
+DT::datatable(object_df)
+```
+
+### 構造考慮の結果データ(一例: 女性 → 踊り)
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 triangle_dfs <- list()
 for (file in list.files(triangle_dir, triangle_file, full.names = TRUE)) {
     splitted_file <- rev(strsplit(file, "/")[[1]])[1]
@@ -26,8 +46,12 @@ for (file in list.files(triangle_dir, triangle_file, full.names = TRUE)) {
     B_cod <- rev(splitted_file)[1]
     triangle_dfs[[paste(B_dom, B_cod)]] <- read_csv(file)
 }
+DT::datatable(triangle_dfs$"女性 踊り")
+```
 
-# 構造無視の順位相関係数
+## 順位相関係数
+### 構造無視
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 statistics <- list()
 p_values <- list()
 estimates <- list()
@@ -52,9 +76,13 @@ object_corr <- data.frame(
     p_value = unlist(p_values),
     statistics = unlist(statistics)
 )
-View(object_corr)
+```
+```{r, echo=FALSE}
+DT::datatable(object_corr)
+```
 
-# 構造考慮の順位相関係数
+### 構造考慮
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 triangle_corr <- data.frame()
 for (key in names(triangle_dfs)) {
     triangle_df <- triangle_dfs[[key]]
@@ -89,5 +117,7 @@ for (key in names(triangle_dfs)) {
     )
     triangle_corr <- rbind(triangle_corr, triangle_corr_)
 }
-View(triangle_corr)
-# View(triangle_corr[["スカート 音楽"]])
+```
+```{r, echo=FALSE}
+DT::datatable(triangle_corr)
+```
