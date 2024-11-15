@@ -1,7 +1,7 @@
 ---
-title: "TINTシミュレーション結果の順位相関係数"
+title: "TINTシミュレーション結果の順位相関係数 (Softmax)"
 author: "Fumitaka Iwaki"
-date: "2024/11/13"
+date: "2024/11/15"
 output: html_document
 ---
 
@@ -18,20 +18,20 @@ setwd("~/desktop/research/TINT/analysis")
 ## ファイルの読み込み
 ```{r, include=FALSE}
 human_file <- "../results/human_correspondence.csv"
-object_file <- "../results/20241111_object/object_蝶_踊り子.csv"
-triangle_dir <- "../results/20241111_triangle"
+object_file <- "../results/object_softmax/object_蝶_踊り子.csv"
+triangle_dir <- "../results/triangle_softmax"
 triangle_file <- "triangle_蝶_踊り子_"
 ```
 
 ### 人間の結果データ
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 human_df <- read_csv(human_file)
-l = c()
+all_vehicles = c()
 for (vehi in human_df$"...1") {
-    l = c(l, vehi)
+    all_vehicles = c(all_vehicles, vehi)
 }
 human_df <- human_df[, -1]
-rownames(human_df) <- l
+rownames(human_df) <- all_vehicles
 ```
 ```{r, echo=FALSE}
 DT::datatable(human_df)
@@ -148,7 +148,6 @@ all_triangle_corr <- rbind(dom_triangle_corr, cod_triangle_corr)
 rownames(all_triangle_corr) <- 1:nrow(all_triangle_corr)
 ```
 
-#### まとめて描画
 ```{r, echo=FALSE}
 # データの準備：データフレームに 'source' 列を追加
 object_corr <- object_corr %>% mutate(source = "構造無視")
@@ -160,12 +159,16 @@ all_triangle_corr_avg <- all_triangle_corr %>%
   mutate(source = "三角構造考慮: 平均値")
 
 # データの結合
-combined_data <- bind_rows(object_corr, all_triangle_corr, all_triangle_corr_avg)
+combined_data <- bind_rows(all_triangle_corr, all_triangle_corr_avg, object_corr)
+# プロットの順番を制御するため、`source`を因子に変換して順番を指定
+combined_data$source <- factor(combined_data$source, levels = c("構造無視", "三角構造考慮: 平均値", "三角構造考慮"))
+
 
 # プロットの作成
 plot <- ggplot(combined_data, aes(x = vehicle, y = corr, color = source, shape = source)) +
   geom_point(size = 3) +  # 点を描画、色と形をsourceごとに設定
-  scale_y_continuous(breaks = seq(-1, 1, by = 0.2)) +  # y軸を0.2刻みで設定
+  scale_x_discrete(limits = all_vehicles) +  # 表示したいカテゴリのみ指定
+  scale_y_continuous(breaks = seq(-1, 1, by = 0.2), limits = c(-1, 1)) +  # y軸を0.2刻みで設定
   scale_shape_manual(values = c("構造無視" = 16, "三角構造考慮" = 17, "三角構造考慮: 平均値" = 17)) +  # shapeを手動で指定
   scale_color_manual(values = c("構造無視" = "turquoise", "三角構造考慮" = "coral", "三角構造考慮: 平均値" = "palegreen")) +  # colorを手動で指定
   labs(x = "喩辞の初期イメージ", y = "順位相関係数") +
@@ -180,7 +183,7 @@ plot <- ggplot(combined_data, aes(x = vehicle, y = corr, color = source, shape =
     ) +
   guides(color = guide_legend(title = NULL), shape = guide_legend(title = NULL))  # 凡例のタイトルを非表示
 
-ggsave("./fig/rank_corr_all.pdf", plot, width = 10, height = 10)
+ggsave("./fig/softmax_rank_corr_all.pdf", plot, width = 10, height = 10)
 ```
 ```{r, echo=FALSE}
 plot
@@ -203,12 +206,15 @@ all_triangle_corr_avg <- all_triangle_corr_filtered %>%
   mutate(source = "三角構造考慮: 平均値")
 
 # データの結合
-combined_data_filtered <- bind_rows(object_corr_filtered, all_triangle_corr_filtered, all_triangle_corr_avg)
+combined_data_filtered <- bind_rows(all_triangle_corr_filtered, all_triangle_corr_avg, object_corr_filtered)
+# プロットの順番を制御するため、`source`を因子に変換して順番を指定
+combined_data_filtered$source <- factor(combined_data_filtered$source, levels = c("構造無視", "三角構造考慮: 平均値", "三角構造考慮"))
 
 # プロットの作成
 plot <- ggplot(combined_data_filtered, aes(x = vehicle, y = corr, color = source, shape = source)) +
   geom_point(size = 3) +  # 点を描画、色と形をsourceごとに設定
-  scale_y_continuous(breaks = seq(-1, 1, by = 0.2)) +  # y軸を0.2刻みで設定
+  scale_x_discrete(limits = all_vehicles) +  # 表示したいカテゴリのみ指定
+  scale_y_continuous(breaks = seq(-1, 1, by = 0.2), limits = c(-1, 1)) +  # y軸を0.2刻みで設定
   scale_shape_manual(values = c("構造無視" = 16, "三角構造考慮" = 17, "三角構造考慮: 平均値" = 17)) +  # shapeを手動で指定
   scale_color_manual(values = c("構造無視" = "turquoise", "三角構造考慮" = "coral", "三角構造考慮: 平均値" = "palegreen")) +  # colorを手動で指定
   labs(x = "喩辞の初期イメージ", y = "順位相関係数") +
@@ -223,7 +229,7 @@ plot <- ggplot(combined_data_filtered, aes(x = vehicle, y = corr, color = source
     ) +
   guides(color = guide_legend(title = NULL), shape = guide_legend(title = NULL))  # 凡例のタイトルを非表示
 
-ggsave("./fig/rank_corr_p_010.pdf", plot, width = 10, height = 10)
+ggsave("./fig/softmax_rank_corr_p_010.pdf", plot, width = 10, height = 10)
 ```
 ```{r, echo=FALSE}
 plot
@@ -246,12 +252,15 @@ all_triangle_corr_avg <- all_triangle_corr_filtered %>%
   mutate(source = "三角構造考慮: 平均値")
 
 # データの結合
-combined_data_filtered <- bind_rows(object_corr_filtered, all_triangle_corr_filtered, all_triangle_corr_avg)
+combined_data_filtered <- bind_rows(all_triangle_corr_filtered, all_triangle_corr_avg, object_corr_filtered)
+# プロットの順番を制御するため、`source`を因子に変換して順番を指定
+combined_data_filtered$source <- factor(combined_data_filtered$source, levels = c("構造無視", "三角構造考慮: 平均値", "三角構造考慮"))
 
 ## プロットの作成
 plot <- ggplot(combined_data_filtered, aes(x = vehicle, y = corr, color = source, shape = source)) +
   geom_point(size = 3) +  # 点を描画、色と形をsourceごとに設定
-  scale_y_continuous(breaks = seq(-1, 1, by = 0.2)) +  # y軸を0.2刻みで設定
+  scale_x_discrete(limits = all_vehicles) +  # 表示したいカテゴリのみ指定
+  scale_y_continuous(breaks = seq(-1, 1, by = 0.2), limits = c(-1, 1)) +  # y軸を0.2刻みで設定
   scale_shape_manual(values = c("構造無視" = 16, "三角構造考慮" = 17, "三角構造考慮: 平均値" = 17)) +  # shapeを手動で指定
   scale_color_manual(values = c("構造無視" = "turquoise", "三角構造考慮" = "coral", "三角構造考慮: 平均値" = "palegreen")) +  # colorを手動で指定
   labs(x = "喩辞の初期イメージ", y = "順位相関係数") +
@@ -266,7 +275,7 @@ plot <- ggplot(combined_data_filtered, aes(x = vehicle, y = corr, color = source
     ) +
   guides(color = guide_legend(title = NULL), shape = guide_legend(title = NULL))  # 凡例のタイトルを非表示
 
-ggsave("./fig/rank_corr_p_005.pdf", plot, width = 10, height = 10)
+ggsave("./fig/softmax_rank_corr_p_005.pdf", plot, width = 10, height = 10)
 ```
 ```{r, echo=FALSE}
 plot

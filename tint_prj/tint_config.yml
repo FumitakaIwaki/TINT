@@ -4,8 +4,8 @@ object:
   image_file: "tint_prj/data/three_metaphor_images.csv"
   out_dir: "tint_prj/out/"
   NN: 0
-  steps: 1000
-  search_method: "deterministic"
+  steps: 10000
+  search_method: "softmax"
   softmax_beta: 1.0
   seed: 1234
   verbose: true
@@ -16,8 +16,8 @@ triangle:
   image_file: "tint_prj/data/three_metaphor_images.csv"
   out_dir: "tint_prj/out/"
   NN: 0
-  steps: 1000
-  search_method: "deterministic"
+  steps: 10000
+  search_method: "softmax"
   softmax_beta: 1.0
   seed: 1234
   verbose: true
