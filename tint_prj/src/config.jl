@@ -10,6 +10,7 @@ mutable struct ObjectCfg <: AbstractCfg
     NN::Int
     steps::Int
     search_method::String
+    β::Float64
     seed::Int
     verbose::Bool
     # 直接configのdictを渡されたときの内部コンストラクタ
@@ -21,9 +22,10 @@ mutable struct ObjectCfg <: AbstractCfg
         NN = config["NN"]
         steps = config["steps"]
         search_method = config["search_method"]
+        β = config["softmax_beta"]
         seed = config["seed"]
         verbose = config["verbose"]
-        new(metaphor_set, assoc_file, image_file, out_dir, NN, steps, search_method, seed, verbose)
+        new(metaphor_set, assoc_file, image_file, out_dir, NN, steps, search_method, β, seed, verbose)
     end
     # config.ymlのパスを渡されたときの内部コンストラクタ
     function ObjectCfg(path::String)
@@ -40,6 +42,7 @@ mutable struct TriangleCfg <: AbstractCfg
     NN::Int
     steps::Int
     search_method::String
+    β::Float64
     seed::Int
     verbose::Bool
     # 直接configのdictを渡されたときの内部コンストラクタ
@@ -51,9 +54,10 @@ mutable struct TriangleCfg <: AbstractCfg
         NN = config["NN"]
         steps = config["steps"]
         search_method = config["search_method"]
+        β = config["softmax_beta"]
         seed = config["seed"]
         verbose = config["verbose"]
-        new(metaphor_set, assoc_file, image_file, out_dir, NN, steps, search_method, seed, verbose)
+        new(metaphor_set, assoc_file, image_file, out_dir, NN, steps, search_method, β, seed, verbose)
     end
     # config.ymlのパスを渡されたときの内部コンストラクタ
     function TriangleCfg(path::String)

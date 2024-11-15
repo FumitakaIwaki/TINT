@@ -169,8 +169,14 @@ function full_anti_fork_rule(A_category::SimpleDiGraph, B_category::SimpleDiGrap
 end
 
 # 関手として採用する射をsoftmaxで選択する関数
-function softmax(candidates::Vector{Tuple})::Tuple
-    exp_prob = [exp(p[3]) for p in candidates]
+function softmax(candidates::Vector, candidates_weights::Vector;
+    reverse::Bool = false, β::Float64 = 1.0)::typeof(candidates[1])
+    if reverse
+        weights = candidates_weights .* -1
+    else
+        weights = candidates_weights
+    end
+    exp_prob = [exp(β * p) for p in weights]
     sum_exp_prob = sum(exp_prob)
     probs = [i / sum_exp_prob for i in exp_prob]
     return wsample(candidates, probs)
@@ -180,9 +186,10 @@ end
 # 対応づけられた射の連想確率の差の総和が最小
 function find_similar_structure(potential_category::SimpleWeightedDiGraph,
     target_category::SimpleDiGraph, target::Int, source::Int, dom::Int, cod::Int, 
-    dom_candidates::Vector{Int}, cod_candidates::Vector{Int}
+    dom_candidates::Vector{Int}, cod_candidates::Vector{Int}, config::AbstractCfg
     )::Tuple
-    edge_correct_pair = Vector()
+    edge_correct_pair = Vector{Tuple{Int, Int}}()
+    weight_dists = Vector{Float64}()
     for dom_candidate in dom_candidates
         for cod_candidate in cod_candidates
             # 関手が成り立つような射が間に無い場合はパス
@@ -204,13 +211,20 @@ function find_similar_structure(potential_category::SimpleWeightedDiGraph,
             # sourceとtargetの三角構造の構成要素同士の重みを比較
             # 似た連想確率を持つ構造を移り先として適当なのではないか
             weight_dist = abs(dom_edge_weight - F_dom_edge_weight) + abs(cod_edge_weight - F_cod_edge_weight) + abs(coslice_edge_weihgt - F_coslice_edge_weight)
-            push!(edge_correct_pair, (dom_candidate, cod_candidate, weight_dist))
+            push!(edge_correct_pair, (dom_candidate, cod_candidate))
+            push!(weight_dists, weight_dist)
         end
     end
     if length(edge_correct_pair) == 0
         return ()
     else
-        return edge_correct_pair[findmin(x->x[3], edge_correct_pair)[2]]
+        if config.search_method == "deterministic"
+            return edge_correct_pair[findmin(weight_dists)[2]]
+        elseif config.search_method == "softmax"
+            return softmax(edge_correct_pair, weight_dists; reverse=true, β = config.β)
+        else
+            throw(DomainError(config.search_method, "Invalid search method is selected."))
+        end
     end
 end
 
@@ -243,7 +257,13 @@ function search(potential_category::SimpleWeightedDiGraph,
             # 候補の重み
             candidates_weights = weight_list[rand_list .< weight_list]
             # 変換先の決定: 重み最大 (複数の場合ランダム)
-            target_object = rand(candidates[findall(candidates_weights .== maximum(candidates_weights))])
+            if config.search_method == "deterministic"
+                target_object = rand(candidates[findall(candidates_weights .== maximum(candidates_weights))])
+            elseif config.search_method == "softmax"
+                target_object = softmax(candidates, candidates_weights; β = config.β)
+            else
+                throw(DomainError(config.search_method, "Invalid search method is selected."))
+            end
             # 変換元の対象
             source_object = source_objects[i]
             
@@ -308,12 +328,15 @@ function search(potential_category::SimpleWeightedDiGraph,
 
         # 候補の中で最も構造が類似しているものを自然変換の要素として選択
         # 選択する関数の中で正しく関手になっていない候補は省く
-        candidate = find_similar_structure(potential_category, target_category, target, source, dom, cod, dom_candidates, cod_candidates)
+        candidate = find_similar_structure(
+            potential_category, target_category, target, source,
+            dom, cod, dom_candidates, cod_candidates, config
+            )
         # 候補が存在しない場合はそのコスライス圏に対応づく射は無い
         if length(candidate) == 0
             continue
         end
-        nt_dom, nt_cod, nt_weight = candidate
+        nt_dom, nt_cod = candidate
         
         # BMFの記録
         BMF_objects[dom] = dom
