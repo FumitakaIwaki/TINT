@@ -7,6 +7,12 @@ output: html_document
 
 ```{r, include=FALSE}
 library(tidyverse)
+library(ggplot2)
+library(showtext)
+
+font_add("Hiragino", "/System/Library/Fonts/ヒラギノ角ゴシック W4.ttc")  # MacOSのヒラギノフォントパス
+showtext_auto() # 図の日本語表示の設定
+setwd("~/desktop/research/TINT/analysis")
 ```
 
 ## ファイルの読み込み
@@ -26,12 +32,16 @@ for (vehi in human_df$"...1") {
 }
 human_df <- human_df[, -1]
 rownames(human_df) <- l
+```
+```{r, echo=FALSE}
 DT::datatable(human_df)
 ```
 
 ### 構造無視の結果データ
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 object_df <- read_csv(object_file)
+```
+```{r, echo=FALSE}
 DT::datatable(object_df)
 ```
 
@@ -46,6 +56,8 @@ for (file in list.files(triangle_dir, triangle_file, full.names = TRUE)) {
     B_cod <- rev(splitted_file)[1]
     triangle_dfs[[paste(B_dom, B_cod)]] <- read_csv(file)
 }
+```
+```{r, echo=FALSE}
 DT::datatable(triangle_dfs$"女性 踊り")
 ```
 
@@ -120,4 +132,142 @@ for (key in names(triangle_dfs)) {
 ```
 ```{r, echo=FALSE}
 DT::datatable(triangle_corr)
+```
+
+## 構造無視と構造考慮の比較
+### 喩辞ごとの人間の結果との相関係数を描画
+- 三角構造を考慮した結果は，一つの喩辞について複数の結果が出る（重複があるため）
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+dom_triangle_corr <- triangle_corr %>% select(dom, corr_dom, p_value_dom, statistic_dom)
+names(dom_triangle_corr) <- c("vehicle", "corr", "p_value", "statistic")
+
+cod_triangle_corr <- triangle_corr %>% select(cod, corr_cod, p_value_cod, statistic_cod)
+names(cod_triangle_corr) <- c("vehicle", "corr", "p_value", "statistic")
+
+all_triangle_corr <- rbind(dom_triangle_corr, cod_triangle_corr)
+rownames(all_triangle_corr) <- 1:nrow(all_triangle_corr)
+```
+
+#### まとめて描画
+```{r, echo=FALSE}
+# データの準備：データフレームに 'source' 列を追加
+object_corr <- object_corr %>% mutate(source = "構造無視")
+all_triangle_corr <- all_triangle_corr %>% mutate(source = "三角構造考慮")
+
+all_triangle_corr_avg <- all_triangle_corr %>%
+  group_by(vehicle) %>%
+  summarize(corr = mean(corr), p_value = mean(p_value)) %>%
+  mutate(source = "三角構造考慮: 平均値")
+
+# データの結合
+combined_data <- bind_rows(object_corr, all_triangle_corr, all_triangle_corr_avg)
+
+# プロットの作成
+plot <- ggplot(combined_data, aes(x = vehicle, y = corr, color = source, shape = source)) +
+  geom_point(size = 3) +  # 点を描画、色と形をsourceごとに設定
+  scale_y_continuous(breaks = seq(-1, 1, by = 0.2)) +  # y軸を0.2刻みで設定
+  scale_shape_manual(values = c("構造無視" = 16, "三角構造考慮" = 17, "三角構造考慮: 平均値" = 17)) +  # shapeを手動で指定
+  scale_color_manual(values = c("構造無視" = "turquoise", "三角構造考慮" = "coral", "三角構造考慮: 平均値" = "palegreen")) +  # colorを手動で指定
+  labs(x = "喩辞の初期イメージ", y = "順位相関係数") +
+  theme_minimal() +  # シンプルなテーマを適用
+  theme(
+    text = element_text(family = "Hiragino"),
+    axis.title.x = element_text(size = 15),
+    axis.title.y = element_text(size = 15),
+    axis.text.x = element_text(size = 12.5, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 12.5),
+    legend.text = element_text(size=15)
+    ) +
+  guides(color = guide_legend(title = NULL), shape = guide_legend(title = NULL))  # 凡例のタイトルを非表示
+
+ggsave("./fig/rank_corr_all.pdf", plot, width = 10, height = 10)
+```
+```{r, echo=FALSE}
+plot
+```
+
+#### p < 0.10のみ
+```{r, echo=FALSE}
+# データの準備：p_value < 0.1の行のみを抽出
+object_corr_filtered <- object_corr %>%
+  filter(p_value < 0.1) %>%
+  mutate(source = "構造無視")
+
+all_triangle_corr_filtered <- all_triangle_corr %>%
+  filter(p_value < 0.1) %>%
+  mutate(source = "三角構造考慮")
+
+all_triangle_corr_avg <- all_triangle_corr_filtered %>%
+  group_by(vehicle) %>%
+  summarize(corr = mean(corr), p_value = mean(p_value)) %>%
+  mutate(source = "三角構造考慮: 平均値")
+
+# データの結合
+combined_data_filtered <- bind_rows(object_corr_filtered, all_triangle_corr_filtered, all_triangle_corr_avg)
+
+# プロットの作成
+plot <- ggplot(combined_data_filtered, aes(x = vehicle, y = corr, color = source, shape = source)) +
+  geom_point(size = 3) +  # 点を描画、色と形をsourceごとに設定
+  scale_y_continuous(breaks = seq(-1, 1, by = 0.2)) +  # y軸を0.2刻みで設定
+  scale_shape_manual(values = c("構造無視" = 16, "三角構造考慮" = 17, "三角構造考慮: 平均値" = 17)) +  # shapeを手動で指定
+  scale_color_manual(values = c("構造無視" = "turquoise", "三角構造考慮" = "coral", "三角構造考慮: 平均値" = "palegreen")) +  # colorを手動で指定
+  labs(x = "喩辞の初期イメージ", y = "順位相関係数") +
+  theme_minimal() +  # シンプルなテーマを適用
+  theme(
+    text = element_text(family = "Hiragino"),
+    axis.title.x = element_text(size = 15),
+    axis.title.y = element_text(size = 15),
+    axis.text.x = element_text(size = 12.5, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 12.5),
+    legend.text = element_text(size=15)
+    ) +
+  guides(color = guide_legend(title = NULL), shape = guide_legend(title = NULL))  # 凡例のタイトルを非表示
+
+ggsave("./fig/rank_corr_p_010.pdf", plot, width = 10, height = 10)
+```
+```{r, echo=FALSE}
+plot
+```
+
+#### p < 0.05のみ
+```{r, echo=FALSE}
+# データの準備：p_value < 0.05の行のみを抽出
+object_corr_filtered <- object_corr %>%
+  filter(p_value < 0.05) %>%
+  mutate(source = "構造無視")
+
+all_triangle_corr_filtered <- all_triangle_corr %>%
+  filter(p_value < 0.05) %>%
+  mutate(source = "三角構造考慮")
+
+all_triangle_corr_avg <- all_triangle_corr_filtered %>%
+  group_by(vehicle) %>%
+  summarize(corr = mean(corr), p_value = mean(p_value)) %>%
+  mutate(source = "三角構造考慮: 平均値")
+
+# データの結合
+combined_data_filtered <- bind_rows(object_corr_filtered, all_triangle_corr_filtered, all_triangle_corr_avg)
+
+## プロットの作成
+plot <- ggplot(combined_data_filtered, aes(x = vehicle, y = corr, color = source, shape = source)) +
+  geom_point(size = 3) +  # 点を描画、色と形をsourceごとに設定
+  scale_y_continuous(breaks = seq(-1, 1, by = 0.2)) +  # y軸を0.2刻みで設定
+  scale_shape_manual(values = c("構造無視" = 16, "三角構造考慮" = 17, "三角構造考慮: 平均値" = 17)) +  # shapeを手動で指定
+  scale_color_manual(values = c("構造無視" = "turquoise", "三角構造考慮" = "coral", "三角構造考慮: 平均値" = "palegreen")) +  # colorを手動で指定
+  labs(x = "喩辞の初期イメージ", y = "順位相関係数") +
+  theme_minimal() +  # シンプルなテーマを適用
+  theme(
+    text = element_text(family = "Hiragino"),
+    axis.title.x = element_text(size = 15),
+    axis.title.y = element_text(size = 15),
+    axis.text.x = element_text(size = 12.5, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 12.5),
+    legend.text = element_text(size=15)
+    ) +
+  guides(color = guide_legend(title = NULL), shape = guide_legend(title = NULL))  # 凡例のタイトルを非表示
+
+ggsave("./fig/rank_corr_p_005.pdf", plot, width = 10, height = 10)
+```
+```{r, echo=FALSE}
+plot
 ```
