@@ -6,6 +6,7 @@ object:
   NN: 0
   steps: 1000
   search_method: "deterministic"
+  softmax_beta: 1.0
   seed: 1234
   verbose: true
 
@@ -17,5 +18,6 @@ triangle:
   NN: 0
   steps: 1000
   search_method: "deterministic"
+  softmax_beta: 1.0
   seed: 1234
   verbose: true
