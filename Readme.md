@@ -21,7 +21,7 @@ to do: 論文の引用と軽い説明
 
 #### シミュレーション設定
 - シミュレーションの設定は`tint_prj/tint_config.yml`で管理
-```yaml  tint_config.yml
+```yaml
 object: # 構造無視の設定
   metaphor_set: [["蝶", "踊り子"]] # ベースとなる比喩のペア
   assoc_file: "tint_prj/data/three_metaphor_assoc_data.csv" # 連想確率データ
