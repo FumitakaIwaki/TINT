@@ -1,0 +1,198 @@
+---
+title: "TINTシミュレーション結果のRMSE"
+author: "Fumitaka Iwaki"
+date: "2024/11/19"
+output: html_document
+---
+
+```{r, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(showtext)
+library(Metrics)
+
+font_add("Hiragino", "/System/Library/Fonts/ヒラギノ角ゴシック W4.ttc")
+showtext_auto()
+setwd("~/desktop/research/TINT/analysis")
+```
+
+## データ
+```{r, include=FALSE}
+human_file <- "../results/human_correspondence.csv"
+deterministic_object_file <- "../results/object_deterministic/object_蝶_踊り子.csv"
+softmax_object_file <- "../results/object_softmax/object_蝶_踊り子.csv"
+deterministic_triangle_dir <- "../results/triangle_deterministic"
+softmax_triangle_dir <- "../results/triangle_softmax"
+triangle_file <- "triangle_蝶_踊り子_"
+```
+
+### 人間の結果データ
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+human_df <- read_csv(human_file)
+all_vehicles = c()
+for (vehi in human_df$"...1") {
+    all_vehicles = c(all_vehicles, vehi)
+}
+human_df <- human_df[, -1]
+rownames(human_df) <- all_vehicles
+```
+```{r, echo=FALSE}
+DT::datatable(human_df)
+```
+
+### 構造無視の結果データ
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+det_object_df <- read_csv(deterministic_object_file)
+smx_object_df <- read_csv(softmax_object_file)
+```
+#### Deterministic
+```{r, echo=FALSE}
+DT::datatable(det_object_df)
+```
+#### Softmax
+```{r, echo=FALSE}
+DT::datatable(smx_object_df)
+```
+
+### 構造考慮の結果データ(一例: 女性 → 踊り)
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+det_triangle_dfs <- list()
+for (file in list.files(deterministic_triangle_dir, triangle_file, full.names = TRUE)) {
+    splitted_file <- rev(strsplit(file, "/")[[1]])[1]
+    splitted_file <- strsplit(splitted_file, ".csv")[[1]]
+    splitted_file <- strsplit(splitted_file, "_")[[1]]
+    B_dom <- rev(splitted_file)[2]
+    B_cod <- rev(splitted_file)[1]
+    det_triangle_dfs[[paste(B_dom, B_cod)]] <- read_csv(file)
+}
+
+smx_triangle_dfs <- list()
+for (file in list.files(softmax_triangle_dir, triangle_file, full.names = TRUE)) {
+    splitted_file <- rev(strsplit(file, "/")[[1]])[1]
+    splitted_file <- strsplit(splitted_file, ".csv")[[1]]
+    splitted_file <- strsplit(splitted_file, "_")[[1]]
+    B_dom <- rev(splitted_file)[2]
+    B_cod <- rev(splitted_file)[1]
+    smx_triangle_dfs[[paste(B_dom, B_cod)]] <- read_csv(file)
+}
+```
+#### Deterministic
+```{r, echo=FALSE}
+DT::datatable(det_triangle_dfs$"女性 踊り")
+```
+#### Softmax
+```{r, echo=FALSE}
+DT::datatable(smx_triangle_dfs$"女性 踊り")
+```
+
+## RMSE
+```{r, echo=FALSE}
+normalization <- function(x) {
+    (x - mean(x)) / sd(x)
+}
+
+calc_rmse <- function(human_df, df, vehicles) {
+    rmse_results <- c()
+    for (vehicle in vehicles) {
+        normalized_human_scores <- normalization(unlist(human_df[vehicle, ]))
+        scores <- c()
+        for (topic in names(human_df)[-length(names(human_df))]) {
+            score <- subset(
+                df, B_cod == vehicle & A_cod == topic
+            )$probability[1]
+            if (is.na(score)) {
+                score <- 0
+            }
+            scores[topic] <- score
+        }
+        scores["NA"] <- 1 - sum(unlist(scores))
+        normalized_scores <- normalization(scores)
+        rmse_results <- c(rmse_results, rmse(normalized_human_scores, normalized_scores))
+    }
+    return(rmse_results)
+}
+```
+
+### 構造無視
+```{r, echo=FALSE}
+det_object_rmse <- calc_rmse(human_df, det_object_df, vehicles=rownames(human_df))
+smx_object_rmse <- calc_rmse(human_df, smx_object_df, vehicles=rownames(human_df))
+```
+#### Deterministic | Softmax
+```{r, echo=FALSE}
+df <- data.frame(
+    vehicle = rownames(human_df),
+    deterministic_rmse = det_object_rmse,
+    softmax_rmse = smx_object_rmse
+)
+DT::datatable(df)
+```
+#### Sum of RMSE
+- RMSEは誤差の指標なので，通常総和を取る（だと思う）
+- t検定はvehicleごとのrmseをdeterministicとsoftmaxの間で比較
+    - 有意差出ず
+```{r, echo=FALSE}
+print(paste("deterministic: ", sum(det_object_rmse)))
+print(paste("softmax: ", sum(smx_object_rmse)))
+print(t.test(det_object_rmse, smx_object_rmse, paired = TRUE))
+```
+
+### 構造考慮
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+det_triangle_rmse <- data.frame()
+for (key in names(det_triangle_dfs)) {
+    triangle_df <- det_triangle_dfs[[key]]
+    vehicles <- strsplit(key, " ")[[1]]
+    rmses <- calc_rmse(human_df, triangle_df, vehicles)
+    # triangle_rmse_ <- data.frame(
+    #     dom = vehicles[1],
+    #     cod = vehicles[2],
+    #     rmse_dom = rmses[1],
+    #     rmse_cod = rmses[2]
+    # )
+    triangle_rmse_ <- data.frame(
+        vehicle = vehicles,
+        rmse = rmses
+    )
+    det_triangle_rmse <- rbind(det_triangle_rmse, triangle_rmse_)
+}
+det_triangle_rmse <- det_triangle_rmse %>%
+    group_by(vehicle) %>%
+    summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse), .groups = "drop") %>%
+    ungroup()
+
+smx_triangle_rmse <- data.frame()
+for (key in names(smx_triangle_dfs)) {
+    triangle_df <- smx_triangle_dfs[[key]]
+    vehicles <- strsplit(key, " ")[[1]]
+    rmses <- calc_rmse(human_df, triangle_df, vehicles)
+    # triangle_rmse_ <- data.frame(
+    #     dom = vehicles[1],
+    #     cod = vehicles[2],
+    #     rmse_dom = rmses[1],
+    #     rmse_cod = rmses[2]
+    # )
+    triangle_rmse_ <- data.frame(
+        vehicle = vehicles,
+        rmse = rmses
+    )
+    smx_triangle_rmse <- rbind(smx_triangle_rmse, triangle_rmse_)
+}
+smx_triangle_rmse <- smx_triangle_rmse %>%
+    group_by(vehicle) %>%
+    summarise(mean_rmse = mean(rmse), sd_rmse = sd(rmse), .groups = "drop") %>%
+    ungroup()
+```
+#### Deterministic | Softmax
+```{r, echo=FALSE}
+DT::datatable(cbind(det_triangle_rmse, smx_triangle_rmse))
+```
+#### Sum of RMSE
+- RMSEは誤差の指標なので，通常総和を取る（だと思う）
+- t検定はvehicleごとのmean_rmseをdeterministicとsoftmaxの間で比較
+    - 有意差出ず
+```{r, echo=FALSE}
+print(paste("deterministic: ", sum(det_triangle_rmse$mean_rmse)))
+print(paste("softmax: ", sum(smx_triangle_rmse$mean_rmse)))
+print(t.test(det_triangle_rmse$mean_rmse, smx_triangle_rmse$mean_rmse, paired = TRUE))
+```

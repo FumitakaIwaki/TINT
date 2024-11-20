@@ -1,0 +1,413 @@
+---
+title: "TINTシミュレーション結果の順位相関係数"
+author: "Fumitaka Iwaki"
+date: "2024/11/19"
+output: html_document
+---
+
+```{r, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(showtext)
+
+font_add("Hiragino", "/System/Library/Fonts/ヒラギノ角ゴシック W4.ttc")  # MacOSのヒラギノフォントパス
+showtext_auto() # 図の日本語表示の設定
+setwd("~/desktop/research/TINT/analysis")
+```
+## データ
+```{r, include=FALSE}
+human_file <- "../results/human_correspondence.csv"
+deterministic_object_file <- "../results/object_deterministic/object_蝶_踊り子.csv"
+softmax_object_file <- "../results/object_softmax/object_蝶_踊り子.csv"
+deterministic_triangle_dir <- "../results/triangle_deterministic"
+softmax_triangle_dir <- "../results/triangle_softmax"
+triangle_file <- "triangle_蝶_踊り子_"
+```
+
+### 人間の結果データ
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+human_df <- read_csv(human_file)
+all_vehicles = c()
+for (vehi in human_df$"...1") {
+    all_vehicles = c(all_vehicles, vehi)
+}
+human_df <- human_df[, -1]
+rownames(human_df) <- all_vehicles
+```
+```{r, echo=FALSE}
+DT::datatable(human_df)
+```
+
+### 構造無視の結果データ
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+det_object_df <- read_csv(deterministic_object_file)
+smx_object_df <- read_csv(softmax_object_file)
+```
+#### Deterministic
+```{r, echo=FALSE}
+DT::datatable(det_object_df)
+```
+#### Softmax
+```{r, echo=FALSE}
+DT::datatable(smx_object_df)
+```
+
+### 構造考慮の結果データ(一例: 女性 → 踊り)
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+det_triangle_dfs <- list()
+for (file in list.files(deterministic_triangle_dir, triangle_file, full.names = TRUE)) {
+    splitted_file <- rev(strsplit(file, "/")[[1]])[1]
+    splitted_file <- strsplit(splitted_file, ".csv")[[1]]
+    splitted_file <- strsplit(splitted_file, "_")[[1]]
+    B_dom <- rev(splitted_file)[2]
+    B_cod <- rev(splitted_file)[1]
+    det_triangle_dfs[[paste(B_dom, B_cod)]] <- read_csv(file)
+}
+
+smx_triangle_dfs <- list()
+for (file in list.files(softmax_triangle_dir, triangle_file, full.names = TRUE)) {
+    splitted_file <- rev(strsplit(file, "/")[[1]])[1]
+    splitted_file <- strsplit(splitted_file, ".csv")[[1]]
+    splitted_file <- strsplit(splitted_file, "_")[[1]]
+    B_dom <- rev(splitted_file)[2]
+    B_cod <- rev(splitted_file)[1]
+    smx_triangle_dfs[[paste(B_dom, B_cod)]] <- read_csv(file)
+}
+```
+#### Deterministic
+```{r, echo=FALSE}
+DT::datatable(det_triangle_dfs$"女性 踊り")
+```
+#### Softmax
+```{r, echo=FALSE}
+DT::datatable(smx_triangle_dfs$"女性 踊り")
+```
+
+## 順位相関係数
+```{r, echo=FALSE}
+rank_correlation <- function(human_df, df, vehicles) {
+    statistics <- c()
+    p_values <- c()
+    estimates <- c()
+    for (vehicle in vehicles) {
+        human_rank <- rank(-unlist(human_df[vehicle, ]))
+        counts <- list()
+        for (topic in names(human_df)[-length(names(human_df))]) {
+            count <- subset(
+                df, B_cod == vehicle & A_cod == topic
+            )$count[1]
+            if (is.na(count)) {
+                count <- 0
+            }
+            counts[topic] <- count
+        }
+        counts["NA"] <- 10000 - sum(unlist(counts))
+        df_rank <- rank(-unlist(counts))
+        corr <- cor.test(df_rank, human_rank, method = "spearman")
+        statistics <- c(statistics, corr$statistic)
+        p_values <- c(p_values, corr$p.value)
+        estimates <- c(estimates, corr$estimate)
+    }
+    corr_df <- data.frame(
+        vehicle = vehicles,
+        corr = estimates,
+        p_value = p_values,
+        statistic = statistics
+    )
+    return(corr_df)
+}
+```
+
+### 構造無視
+```{r, echo=FALSE, warning=FALSE}
+det_object_corr <- rank_correlation(human_df, det_object_df, vehicles=rownames(human_df))
+smx_object_corr <- rank_correlation(human_df, smx_object_df, vehicles=rownames(human_df))
+```
+#### Deterministic
+```{r, echo=FALSE}
+DT::datatable(det_object_corr)
+```
+#### Softmax
+```{r, echo=FALSE}
+DT::datatable(smx_object_corr)
+```
+
+### 三角構造考慮
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+det_triangle_corr <- data.frame()
+for (key in names(det_triangle_dfs)) {
+    triangle_df <- det_triangle_dfs[[key]]
+    vehicles <- strsplit(key, " ")[[1]]
+    triangle_corr <- rank_correlation(human_df, triangle_df, vehicles)
+    det_triangle_corr <- rbind(det_triangle_corr, triangle_corr)
+}
+
+smx_triangle_corr <- data.frame()
+for (key in names(smx_triangle_dfs)) {
+    triangle_df <- smx_triangle_dfs[[key]]
+    vehicles <- strsplit(key, " ")[[1]]
+    triangle_corr <- rank_correlation(human_df, triangle_df, vehicles)
+    smx_triangle_corr <- rbind(smx_triangle_corr, triangle_corr)
+}
+```
+#### Deterministic
+```{r, echo=FALSE}
+DT::datatable(det_triangle_corr)
+```
+#### Softmax
+```{r, echo=FALSE}
+DT::datatable(smx_triangle_corr)
+```
+
+## Plot
+```{r, echo=FALSE}
+visualize <- function(combined_data, vehicles) {
+    plot <- ggplot(combined_data, aes(
+    x = vehicle, y = corr, shape = mode, color = method, alpha = mode)) +
+    geom_jitter(size = 3, height = 0, width = 0.2) + # jitter plot
+    geom_ribbon(# リボンの追加
+        data = filter(combined_data, mode == "三角構造考慮 (平均)"),
+        aes(x = vehicle_num, ymin = corr - sd, ymax = corr + sd, fill = method),
+        alpha = 0.3, inherit.aes = FALSE
+    ) +
+    geom_line(# 折線の追加
+        aes(x = vehicle_num, y = corr, linetype = mode)
+    ) +
+    scale_x_discrete(limits = vehicles) + # x軸の設定
+    scale_y_continuous(breaks = seq(-1, 1, by = 0.2), limits = c(-1, 1)) + # y軸の設定
+    scale_shape_manual( # 点の形の設定
+        values = c("構造無視" = 16, "三角構造考慮 (平均)" = 17, "三角構造考慮" = 2)
+    ) +
+    scale_color_manual( # 点の色の設定
+        values = c("Deterministic" = "coral", "Softmax" = "royalblue")
+    ) +
+    scale_alpha_manual(
+        values = c("構造無視" = 1, "三角構造考慮 (平均)" = 1, "三角構造考慮" = 0.5)
+    ) +
+    scale_fill_manual(
+        values = c("Deterministic" = "coral", "Softmax" = "royalblue")
+    ) +
+    scale_linetype_manual(
+        values = c("構造無視" = "solid", "三角構造考慮 (平均)" = "twodash", "三角構造考慮" = "blank")
+    ) +
+    labs(x = "喩辞の初期イメージ", y = "順位相関係数") +
+    theme_minimal() + # シンプルなテーマを適用
+    theme(
+        text = element_text(family = "Hiragino"),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        axis.text.x = element_text(size = 12.5, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 12.5),
+        legend.text = element_text(size = 12.5),
+        legend.position = "top",
+        legend.box = "vertical",
+    ) +
+    guides(
+        shape = guide_legend(title = NULL),
+        color = guide_legend(title = NULL, override.aes = list(shape = 15, linetype = "blank")),
+        linetype = guide_legend(title = NULL),
+        alpha = "none",
+        fill = "none"
+    )
+    return(plot)
+}
+```
+```{r, echo=FALSE}
+p_vehicles <- rownames(human_df)
+
+p_det_object_corr <- det_object_corr %>%
+    mutate(
+        mode = "構造無視",
+        method = "Deterministic"
+    )
+p_smx_object_corr <- smx_object_corr %>%
+    mutate(
+        mode = "構造無視",
+        method = "Softmax"
+    )
+
+p_det_triangle_corr <- det_triangle_corr %>%
+    mutate(
+        mode = "三角構造考慮",
+        method = "Deterministic"
+    )
+p_smx_triangle_corr <- smx_triangle_corr %>%
+    mutate(
+        mode = "三角構造考慮",
+        method = "Softmax"
+    )
+
+p_det_triangle_avg <- det_triangle_corr %>%
+    group_by(vehicle) %>%
+    summarise(mean_corr = mean(corr), sd_corr = sd(corr)) %>%
+    rename(corr = mean_corr, sd = sd_corr) %>%
+    mutate(
+        mode = "三角構造考慮 (平均)",
+        method = "Deterministic"
+    )
+p_smx_triangle_avg <- smx_triangle_corr %>%
+    group_by(vehicle) %>%
+    summarise(mean_corr = mean(corr), sd_corr = sd(corr)) %>%
+    rename(corr = mean_corr, sd = sd_corr) %>%
+    mutate(
+        mode = "三角構造考慮 (平均)",
+        method = "Softmax"
+    )
+
+combined_data <- bind_rows(
+    p_det_object_corr,
+    p_smx_object_corr,
+    p_det_triangle_avg,
+    p_smx_triangle_avg,
+    p_det_triangle_corr,
+    p_smx_triangle_corr
+)
+# プロットの順番を制御
+combined_data$mode <- factor(
+    combined_data$mode, levels = c(
+        "構造無視",
+        "三角構造考慮 (平均)",
+        "三角構造考慮"
+    )
+)
+# x軸に順序を追加
+combined_data <- combined_data %>%
+    mutate(vehicle_num = match(combined_data$vehicle, p_vehicles))
+
+# プロットの作成
+plot <- visualize(combined_data, p_vehicles)
+
+# プロットの保存
+ggsave("./fig/rank_corr_all.pdf", plot, width = 10, height = 8)
+```
+```{r, echo=FALSE}
+plot
+```
+
+### p < 0.10
+```{r, echo=FALSE}
+p_det_triangle_corr <- det_triangle_corr %>%
+    filter(p_value < 0.1) %>%
+    mutate(
+        mode = "三角構造考慮",
+        method = "Deterministic"
+    )
+p_smx_triangle_corr <- smx_triangle_corr %>%
+    filter(p_value < 0.1) %>%
+    mutate(
+        mode = "三角構造考慮",
+        method = "Softmax"
+    )
+
+p_det_triangle_avg <- det_triangle_corr %>%
+    filter(p_value < 0.1) %>%
+    group_by(vehicle) %>%
+    summarise(mean_corr = mean(corr), sd_corr = sd(corr)) %>%
+    rename(corr = mean_corr, sd = sd_corr) %>%
+    mutate(
+        mode = "三角構造考慮 (平均)",
+        method = "Deterministic"
+    )
+p_smx_triangle_avg <- smx_triangle_corr %>%
+    filter(p_value < 0.1) %>%
+    group_by(vehicle) %>%
+    summarise(mean_corr = mean(corr), sd_corr = sd(corr)) %>%
+    rename(corr = mean_corr, sd = sd_corr) %>%
+    mutate(
+        mode = "三角構造考慮 (平均)",
+        method = "Softmax"
+    )
+
+combined_data <- bind_rows(
+    p_det_object_corr,
+    p_smx_object_corr,
+    p_det_triangle_avg,
+    p_smx_triangle_avg,
+    p_det_triangle_corr,
+    p_smx_triangle_corr
+)
+# プロットの順番を制御
+combined_data$mode <- factor(
+    combined_data$mode, levels = c(
+        "構造無視",
+        "三角構造考慮 (平均)",
+        "三角構造考慮"
+    )
+)
+# x軸に順序を追加
+combined_data <- combined_data %>%
+    mutate(vehicle_num = match(combined_data$vehicle, p_vehicles))
+
+# プロットの作成
+plot <- visualize(combined_data, p_vehicles)
+
+# プロットの保存
+ggsave("./fig/rank_corr_p_010.pdf", plot, width = 10, height = 8)
+```
+```{r, echo=FALSE}
+plot
+```
+
+### p < 0.05
+```{r, echo=FALSE}
+p_det_triangle_corr <- det_triangle_corr %>%
+    filter(p_value < 0.05) %>%
+    mutate(
+        mode = "三角構造考慮",
+        method = "Deterministic"
+    )
+p_smx_triangle_corr <- smx_triangle_corr %>%
+    filter(p_value < 0.05) %>%
+    mutate(
+        mode = "三角構造考慮",
+        method = "Softmax"
+    )
+
+p_det_triangle_avg <- det_triangle_corr %>%
+    filter(p_value < 0.05) %>%
+    group_by(vehicle) %>%
+    summarise(mean_corr = mean(corr), sd_corr = sd(corr)) %>%
+    rename(corr = mean_corr, sd = sd_corr) %>%
+    mutate(
+        mode = "三角構造考慮 (平均)",
+        method = "Deterministic"
+    )
+p_smx_triangle_avg <- smx_triangle_corr %>%
+    filter(p_value < 0.05) %>%
+    group_by(vehicle) %>%
+    summarise(mean_corr = mean(corr), sd_corr = sd(corr)) %>%
+    rename(corr = mean_corr, sd = sd_corr) %>%
+    mutate(
+        mode = "三角構造考慮 (平均)",
+        method = "Softmax"
+    )
+
+combined_data <- bind_rows(
+    p_det_object_corr,
+    p_smx_object_corr,
+    p_det_triangle_avg,
+    p_smx_triangle_avg,
+    p_det_triangle_corr,
+    p_smx_triangle_corr
+)
+# プロットの順番を制御
+combined_data$mode <- factor(
+    combined_data$mode, levels = c(
+        "構造無視",
+        "三角構造考慮 (平均)",
+        "三角構造考慮"
+    )
+)
+# x軸に順序を追加
+combined_data <- combined_data %>%
+    mutate(vehicle_num = match(combined_data$vehicle, p_vehicles))
+
+# プロットの作成
+plot <- visualize(combined_data, p_vehicles)
+
+# プロットの保存
+ggsave("./fig/rank_corr_p_005.pdf", plot, width = 10, height = 8)
+```
+```{r, echo=FALSE}
+plot
+```
