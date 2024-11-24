@@ -6,7 +6,8 @@ to do: 論文の引用と軽い説明
 
 ## 実行方法
 ### 環境
-- Julia 1.10.4
+- MacBook Air M2 2022 8GB Sequoia 15.1.1
+- Julia 1.11.1
 - Visual Studio Code 1.91.1 (Universal)
 
 ### 手順
@@ -16,8 +17,9 @@ to do: 論文の引用と軽い説明
 3. このリポジトリをcloneしディレクトリに移動
 5. `% julia`でJuliaを起動
 6. キーボードから`]`を入力しパッケージモードにする
-7. `% activate tint_prj`でプロジェクトを起動
-8. `% instantiate`で必要なライブラリをインストール
+7. `> activate tint_prj`でプロジェクトを起動
+8. `> instantiate`で必要なライブラリをインストール
+9. エラーが出る場合は`> precompile`や`> resolve`を実行
 
 #### シミュレーション設定
 - シミュレーションの設定は`tint_prj/tint_config.yml`で管理
