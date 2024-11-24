@@ -120,7 +120,7 @@ function main(config::AbstractCfg)
     assoc_df = load_assoc_data(config.assoc_file)
     image_df = load_images(config.image_file)
     # indexとstrの辞書
-    TINT.idx2img = unique(vcat((image_df[:, ["source", "target"]] |> Array)...))
+    idx2img = unique(vcat((image_df[:, ["source", "target"]] |> Array)...))
     img2idx = Dict((idx2img[i], i) for i in eachindex(idx2img))
     # 総イメージ数の設定
     config.NN = length(idx2img)
