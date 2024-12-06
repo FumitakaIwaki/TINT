@@ -24,6 +24,8 @@ softmax_object_file <- "../results/object_softmax/object_蝶_踊り子.csv"
 deterministic_triangle_dir <- "../results/triangle_deterministic"
 softmax_triangle_dir <- "../results/triangle_softmax"
 triangle_file <- "triangle_蝶_踊り子_"
+deterministic_structure_file <- "../results/whole_structure_deterministic/whole_蝶_踊り子.csv"
+softmax_structure_file <- "../results/whole_structure_softmax/whole_蝶_踊り子.csv"
 ```
 
 ### 人間の結果データ
@@ -83,6 +85,20 @@ DT::datatable(det_triangle_dfs$"女性 踊り")
 #### Softmax
 ```{r, echo=FALSE}
 DT::datatable(smx_triangle_dfs$"女性 踊り")
+```
+
+### 全構造考慮の結果データ
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+det_structure_df <- read_csv(deterministic_structure_file)
+smx_structure_df <- read_csv(softmax_structure_file)
+```
+#### Deterministic
+```{r, echo=FALSE}
+DT::datatable(det_structure_df)
+```
+#### Softmax
+```{r, echo=FALSE}
+DT::datatable(smx_structure_df)
 ```
 
 ## RMSE
@@ -195,4 +211,29 @@ DT::datatable(cbind(det_triangle_rmse, smx_triangle_rmse))
 print(paste("deterministic: ", sum(det_triangle_rmse$mean_rmse)))
 print(paste("softmax: ", sum(smx_triangle_rmse$mean_rmse)))
 print(t.test(det_triangle_rmse$mean_rmse, smx_triangle_rmse$mean_rmse, paired = TRUE))
+```
+
+### 全構造考慮
+```{r, echo=FALSE}
+det_structure_rmse <- calc_rmse(human_df, det_structure_df, vehicles=rownames(human_df))
+smx_structure_rmse <- calc_rmse(human_df, smx_structure_df, vehicles=rownames(human_df))
+```
+#### Deterministic | Softmax
+```{r, echo=FALSE}
+df <- data.frame(
+    vehicle = rownames(human_df),
+    deterministic_rmse = det_structure_rmse,
+    softmax_rmse = smx_structure_rmse
+)
+DT::datatable(df)
+```
+#### Sum of RMSE
+- 三角構造考慮よりは良くなった
+- 構造無視よりは悪い
+- 他手法同様softmaxの方がいい
+- deterministicとsoftmaxで有意差出ず
+```{r, echo=FALSE}
+print(paste("deterministic: ", sum(det_structure_rmse)))
+print(paste("softmax: ", sum(smx_structure_rmse)))
+print(t.test(det_structure_rmse, smx_structure_rmse, paired = TRUE))
 ```

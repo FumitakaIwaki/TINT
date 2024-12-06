@@ -22,6 +22,8 @@ softmax_object_file <- "../results/object_softmax/object_蝶_踊り子.csv"
 deterministic_triangle_dir <- "../results/triangle_deterministic"
 softmax_triangle_dir <- "../results/triangle_softmax"
 triangle_file <- "triangle_蝶_踊り子_"
+deterministic_structure_file <- "../results/whole_structure_deterministic/whole_蝶_踊り子.csv"
+softmax_structure_file <- "../results/whole_structure_softmax/whole_蝶_踊り子.csv"
 ```
 
 ### 人間の結果データ
@@ -81,6 +83,20 @@ DT::datatable(det_triangle_dfs$"女性 踊り")
 #### Softmax
 ```{r, echo=FALSE}
 DT::datatable(smx_triangle_dfs$"女性 踊り")
+```
+
+### 全構造考慮の結果データ
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+det_structure_df <- read_csv(deterministic_structure_file)
+smx_structure_df <- read_csv(softmax_structure_file)
+```
+#### Deterministic
+```{r, echo=FALSE}
+DT::datatable(det_structure_df)
+```
+#### Softmax
+```{r, echo=FALSE}
+DT::datatable(smx_structure_df)
 ```
 
 ## 順位相関係数
@@ -159,6 +175,20 @@ DT::datatable(det_triangle_corr)
 DT::datatable(smx_triangle_corr)
 ```
 
+### 構造無視
+```{r, echo=FALSE, warning=FALSE}
+det_structure_corr <- rank_correlation(human_df, det_structure_df, vehicles=rownames(human_df))
+smx_structure_corr <- rank_correlation(human_df, smx_structure_df, vehicles=rownames(human_df))
+```
+#### Deterministic
+```{r, echo=FALSE}
+DT::datatable(det_structure_corr)
+```
+#### Softmax
+```{r, echo=FALSE}
+DT::datatable(smx_structure_corr)
+```
+
 ## Plot
 ```{r, echo=FALSE}
 visualize <- function(combined_data, vehicles) {
@@ -176,19 +206,19 @@ visualize <- function(combined_data, vehicles) {
     scale_x_discrete(limits = vehicles) + # x軸の設定
     scale_y_continuous(breaks = seq(-1, 1, by = 0.2), limits = c(-1, 1)) + # y軸の設定
     scale_shape_manual( # 点の形の設定
-        values = c("構造無視" = 16, "三角構造考慮 (平均)" = 17, "三角構造考慮" = 2)
+        values = c("構造無視" = 16, "三角構造考慮 (平均)" = 17, "全構造考慮" = 15, "三角構造考慮" = 2)
     ) +
     scale_color_manual( # 点の色の設定
         values = c("Deterministic" = "coral", "Softmax" = "royalblue")
     ) +
     scale_alpha_manual(
-        values = c("構造無視" = 1, "三角構造考慮 (平均)" = 1, "三角構造考慮" = 0.5)
+        values = c("構造無視" = 1, "三角構造考慮 (平均)" = 1, "全構造考慮" = 1, "三角構造考慮" = 0.5)
     ) +
     scale_fill_manual(
         values = c("Deterministic" = "coral", "Softmax" = "royalblue")
     ) +
     scale_linetype_manual(
-        values = c("構造無視" = "solid", "三角構造考慮 (平均)" = "twodash", "三角構造考慮" = "blank")
+        values = c("構造無視" = "solid", "三角構造考慮 (平均)" = "twodash", "全構造考慮" = "dashed", "三角構造考慮" = "blank")
     ) +
     labs(x = "喩辞の初期イメージ", y = "順位相関係数") +
     theme_minimal() + # シンプルなテーマを適用
@@ -254,19 +284,33 @@ p_smx_triangle_avg <- smx_triangle_corr %>%
         method = "Softmax"
     )
 
+p_det_structure_corr <- det_structure_corr %>%
+    mutate(
+        mode = "全構造考慮",
+        method = "Deterministic"
+    )
+p_smx_structure_corr <- smx_structure_corr %>%
+    mutate(
+        mode = "全構造考慮",
+        method = "Softmax"
+    )
+
 combined_data <- bind_rows(
     p_det_object_corr,
     p_smx_object_corr,
     p_det_triangle_avg,
     p_smx_triangle_avg,
     p_det_triangle_corr,
-    p_smx_triangle_corr
+    p_smx_triangle_corr,
+    p_det_structure_corr,
+    p_smx_structure_corr
 )
 # プロットの順番を制御
 combined_data$mode <- factor(
     combined_data$mode, levels = c(
         "構造無視",
         "三角構造考慮 (平均)",
+        "全構造考慮",
         "三角構造考慮"
     )
 )
@@ -324,13 +368,16 @@ combined_data <- bind_rows(
     p_det_triangle_avg,
     p_smx_triangle_avg,
     p_det_triangle_corr,
-    p_smx_triangle_corr
+    p_smx_triangle_corr,
+    p_det_structure_corr,
+    p_smx_structure_corr
 )
 # プロットの順番を制御
 combined_data$mode <- factor(
     combined_data$mode, levels = c(
         "構造無視",
         "三角構造考慮 (平均)",
+        "全構造考慮",
         "三角構造考慮"
     )
 )
@@ -388,13 +435,16 @@ combined_data <- bind_rows(
     p_det_triangle_avg,
     p_smx_triangle_avg,
     p_det_triangle_corr,
-    p_smx_triangle_corr
+    p_smx_triangle_corr,
+    p_det_structure_corr,
+    p_smx_structure_corr
 )
 # プロットの順番を制御
 combined_data$mode <- factor(
     combined_data$mode, levels = c(
         "構造無視",
         "三角構造考慮 (平均)",
+        "全構造考慮",
         "三角構造考慮"
     )
 )
