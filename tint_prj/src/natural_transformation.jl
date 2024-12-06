@@ -282,7 +282,7 @@ function search(potential_category::SimpleWeightedDiGraph,
     return fork_edges, target_remain_edges, source_remain_edges, BMF_objects, F_objects
 end
 
-# 自然変換を探索する関数（構造考慮）
+# 自然変換を探索する関数（三角構造考慮）
 function search(potential_category::SimpleWeightedDiGraph,
     target::Int, source::Int,
     target_category::SimpleDiGraph, source_category::SimpleDiGraph,
@@ -356,6 +356,72 @@ function search(potential_category::SimpleWeightedDiGraph,
         push!(source_remain_edges, (source, dom))
         push!(source_remain_edges, (source, cod))
         push!(source_remain_edges, (dom, cod))
+    end
+    return fork_edges, target_remain_edges, source_remain_edges, BMF_objects, F_objects
+end
+
+# 自然変換を探索する関数（全構造考慮）
+function search(potential_category::SimpleWeightedDiGraph,
+    target::Int, source::Int,
+    target_category::SimpleDiGraph, source_category::SimpleDiGraph,
+    config::WholeStructureCfg; cutoff::Int=1
+    )::Tuple
+    # sourceの対象のみ
+    source_objects = [obj for obj in Graphs.neighbors(source_category, source) if obj != source]
+    # targetの対象のみ
+    target_objects = [obj for obj in Graphs.neighbors(target_category, target) if obj != target]
+    # sourceのコスライス圏の射
+    source_coslice_edges = [edge for edge in edges(source_category) if edge.src != source && edge.src != edge.dst]
+
+    fork_edges = Set{Tuple}()
+    target_remain_edges = Set{Tuple}()
+    source_remain_edges = Set{Tuple}()
+    BMF_objects = Dict{Int, Int}(source => target)
+    F_objects = Dict{Int, Int}(source => target)
+
+    # source -> targetの重み行列
+    weight_mtx = [[potential_category.weights[s_obj, t_obj] for t_obj in  target_objects] for s_obj in source_objects]
+    # 上と同じshapeの乱数行列
+    rand_mtx = [rand(length(target_objects)) for i in 1:length(source_objects)]
+
+    # 合成射を考慮して対応づけを行う
+    for (i, (rand_list, weight_list)) in enumerate(zip(rand_mtx, weight_mtx))
+        # 変換元の対象
+        source_object = source_objects[i]
+        # 変換元の対象をdomとする射のcodの対象
+        source_coslice_objects = [obj for obj in Graphs.neighbors(source_category, source_object) if obj != source && obj != source_object]
+        candidates = target_objects[rand_list .< weight_list]
+        if length(candidates) != 0
+            # 自然変換の候補への重みの計算
+            candidates_weights = zeros(length(candidates))
+            for (i, candidate) in enumerate(candidates)
+                # 変換元の対象から変換先の対象への連想確率
+                candidates_weights[i] += potential_category.weights[source_object, candidate]
+                for obj in source_coslice_objects
+                    # 変換先の対象への合成射の連想確率
+                    candidates_weights[i] += potential_category.weights[obj, candidate] * potential_category.weights[source_object, obj]
+                end
+            end
+            # 変換先の決定
+            if config.search_method == "deterministic"
+                target_object = rand(candidates[findall(candidates_weights .== maximum(candidates_weights))])
+            elseif config.search_method == "softmax"
+                target_object = softmax(candidates, candidates_weights; β = config.β)
+            else
+                throw(DomainError(config.search_method, "Invalid search method is selected."))
+            end
+    
+            # BMFの記録
+            BMF_objects[source_object] = source_object
+            # Fの記録
+            F_objects[source_object] = target_object
+            # 自然変換の要素を記録
+            push!(fork_edges, (source_object, target_object))
+            # Fで移される射を記録
+            push!(target_remain_edges, (target, target_object))
+            # BMF, Fの移り元となる射を記録
+            push!(source_remain_edges, (source, source_object))
+        end
     end
     return fork_edges, target_remain_edges, source_remain_edges, BMF_objects, F_objects
 end
