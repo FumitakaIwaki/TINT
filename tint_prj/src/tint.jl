@@ -88,7 +88,7 @@ function run(potential_category::SimpleWeightedDiGraph,
     return recordes
 end
 
-# 構造考慮の実行関数
+# 三角構造考慮の実行関数
 function run(potential_category::SimpleWeightedDiGraph,
     A::Int, B::Int, A_images::Vector{Int}, B_images::Vector{Int},
     config::TriangleCfg)::Vector{TriangleRecorde}
@@ -110,6 +110,24 @@ function run(potential_category::SimpleWeightedDiGraph,
         # 結果の格納
         push!(recordes, TriangleRecorde(B_dom, B_cod, F))
     end
+    return recordes
+end
+
+# 全構造考慮の実行関数
+function run(potential_category::SimpleWeightedDiGraph,
+    A::Int, B::Int, A_images::Vector{Int}, B_images::Vector{Int},
+    config::WholeStructureCfg)::WholeStructureRecorde
+    metaphor = Dict{Int, Set{Graphs.SimpleGraphs.SimpleEdge{Int}}}()
+    F = Dict{NTuple{2, Int}, NTuple{2, Int}}()
+    # 被喩辞のコスライス圏
+    A_category = build(A, A_images, config)
+    # 喩辞のコスライス圏
+    B_category = build(B, B_images, config)
+    # シミュレーション
+    metaphor, F = simulate(potential_category, A, B, A_category, B_category, config)
+    # 結果の格納
+    recordes = WholeStructureRecorde(F)
+
     return recordes
 end
 

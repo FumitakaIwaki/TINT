@@ -17,7 +17,7 @@ mutable struct ObjectRecorde <: AbstractRecorde
         new(counts)
     end
 end
-# 構造考慮
+# 三角構造考慮
 mutable struct TriangleRecorde <: AbstractRecorde
     B_pair::NTuple{2, Int}
     counts::Dict{NTuple{4, Int}, Int}
@@ -29,6 +29,19 @@ mutable struct TriangleRecorde <: AbstractRecorde
             end
         end
         new((B_dom, B_cod), counts)
+    end
+end
+# 全構造考慮
+mutable struct WholeStructureRecorde <: AbstractRecorde
+    counts::Dict{NTuple{4, Int}, Int}
+    function WholeStructureRecorde(F::Dict{NTuple{2, Int}, NTuple{2, Int}})
+        counts = Dict{NTuple{4, Int}, Int}()
+        for ((B_dom, B_cod), (A_dom, A_cod)) in pairs(F)
+            if B_dom != B_cod || A_dom != A_cod
+                counts[(B_dom, B_cod, A_dom, A_cod)] = 1
+            end
+        end
+        new(counts)
     end
 end
 
@@ -58,6 +71,17 @@ function Result(A::Int, B::Int, config::TriangleCfg)
     sizehint!(recordes, config.steps)
     return TriangleResult(A, B, recordes)
 end
+# 全構造考慮
+mutable struct WholeStructureResult <: AbstractResult
+    A::Int
+    B::Int
+    recorde::WholeStructureRecorde
+end
+# 全構造考慮の外部コンストラクタ
+function Result(A::Int, B::Int, config::WholeStructureCfg)
+    recordes = WholeStructureRecorde(Dict{NTuple{2, Int}, NTuple{2, Int}}())
+    return WholeStructureResult(A, B, recordes)
+end
 
 # Resultの更新をする関数
 # 構造無視
@@ -84,6 +108,16 @@ function update_result!(result::TriangleResult, new_recordes::Vector{TriangleRec
             end
         else
             result.recordes[B_pair] = new_recorde
+        end
+    end
+end
+# 全構造考慮
+function update_result!(result::WholeStructureResult, new_recorde::WholeStructureRecorde)
+    for (correspondence, count) in pairs(new_recorde.counts)
+        if haskey(result.recorde.counts, correspondence)
+            result.recorde.counts[correspondence] += count
+        else
+            result.recorde.counts[correspondence] = count
         end
     end
 end
@@ -139,4 +173,28 @@ function save_result(result::TriangleResult, config::TriangleCfg, idx2img::Vecto
         config_dict = Dict([(string(p), getproperty(config, p)) for p in propertynames(config)])
         YAML.write_file(string(dir, "triangle_config.yml"), config_dict)
     end
+end
+# 全構造考慮
+function save_result(result::WholeStructureResult, config::WholeStructureCfg, idx2img::Vector{String})
+    dir = string(config.out_dir, "whole_structure/")
+    if !isdir(dir)
+        mkdir(dir)
+    end
+    A = idx2img[result.A]
+    B = idx2img[result.B]
+    recorde = result.recorde
+    file = string("whole_", A, "_", B, ".csv")
+    df = DataFrame(
+        B_dom = [idx2img[x[1]] for x in keys(recorde.counts)],
+        B_cod = [idx2img[x[2]] for x in keys(recorde.counts)],
+        A_dom = [idx2img[x[3]] for x in keys(recorde.counts)],
+        A_cod = [idx2img[x[4]] for x in keys(recorde.counts)],
+        count = [x for x in values(recorde.counts)],
+        probability = values(recorde.counts) ./ config.steps,
+        )
+    sort!(df, [:B_dom, :B_cod, :A_dom, :A_cod])
+    path = string(dir, file)
+    CSV.write(path, df, header=true)
+    config_dict = Dict([(string(p), getproperty(config, p)) for p in propertynames(config)])
+    YAML.write_file(string(dir, "whole_structure_config.yml"), config_dict)
 end

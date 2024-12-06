@@ -26,7 +26,7 @@ function build(center_image::Int, init_images::Vector{Int}, config::ObjectCfg)::
     return graph
 end
 
-# 被喩辞のコスライス圏を構築する関数 （構造考慮）
+# 被喩辞のコスライス圏を構築する関数 （三角構造考慮）
 function build(center_image::Int, init_images::Vector{Int}, config::TriangleCfg)::SimpleDiGraph
     graph = SimpleDiGraph(config.NN)
     for image in init_images
@@ -39,12 +39,25 @@ function build(center_image::Int, init_images::Vector{Int}, config::TriangleCfg)
     return graph
 end
 
-# 喩辞のコスライス圏を構築する関数 (構造考慮)
+# 喩辞のコスライス圏を構築する関数 (三角構造考慮)
 function build(center_image::Int, dom::Int, cod::Int, config::TriangleCfg)::SimpleDiGraph
     graph = SimpleDiGraph(config.NN)
     add_edge!(graph, center_image, dom)
     add_edge!(graph, center_image, cod)
     add_edge!(graph, dom, cod)
+    graph = add_identity(graph)
+    return graph
+end
+
+# コスライス圏を構築する関数 (全構造考慮)
+function build(center_image::Int, init_images::Vector{Int}, config::WholeStructureCfg)::SimpleDiGraph
+    graph = SimpleDiGraph(config.NN)
+    for image in init_images
+        add_edge!(graph, center_image, image)
+    end
+    for (dom, cod) in permutations(init_images, 2)
+        add_edge!(graph, dom, cod)
+    end
     graph = add_identity(graph)
     return graph
 end
