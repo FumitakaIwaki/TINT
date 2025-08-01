@@ -1,5 +1,5 @@
-# 不定自然変換理論 (Theory of Indeterminate Natural Transformation: TINT)
-不定自然変換理論 (TINT) のシミュレーションプログラム
+# Theory of Indeterminate Natural Transformation (TINT)
+Simulation program for the Theory of Indeterminate Natural Transformation (TINT)
 
 ## TINTについて
 to do: 論文の引用と軽い説明
